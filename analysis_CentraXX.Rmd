@@ -1,0 +1,79 @@
+---
+title: "EMBA: demographics and questionnaires"
+author: "Irene Sophia Plank"
+date: "2023-04-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)           # kable
+library(tidyverse)       # tibble stuff
+library(kableExtra)      # kbl
+library(ggplot2)
+library(BayesFactor)
+library(ggmosaic)
+
+fl.path = "/home/emba/Documents/EMBA"
+dt.path = paste(fl.path, 'CentraXX', sep = "/")
+knitr::opts_knit$set(root.dir = fl.path)
+
+```
+
+<style type="text/css">
+.main-container {
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+```{r load, warning=F, message=F}
+# load preprocessed data
+df.sub = read_csv(file = paste(dt.path, "EMBA_centraXX.csv", sep = "/"), show_col_types = F) %>%
+  mutate(
+    group = as.factor(case_when(
+      ASD == 1 ~ "ASD",
+      ADHD == 1 ~ "ADHD",
+      TRUE ~ "CTR"
+    )),
+    gender_desc = gender,
+    gender = as.factor(case_when(
+      grepl("männlich|male|m", gender_desc, ignore.case = TRUE) ~ "mal",
+      grepl("weiblich|female|w|f", gender_desc, ignore.case = TRUE) ~"fem",
+      TRUE ~ "dan")
+    )
+  ) %>%
+  relocate(PID, group, gender) %>%
+  rename("subID" = "PID")
+
+# check if someone has to be excluded
+nrow(df.sub %>% filter(iq <= 70))
+
+# save group and subID
+write_csv(df.sub %>% select(subID, group), file = paste(dt.path, "EMBA_group.csv", sep = "/"))
+
+# print summary of participants
+kbl(summary(df.sub %>% select(
+  group, gender, age, cis, edu, BDI_total, ASRS_total, RAADS_total, CFT_iq, MWT_iq, iq
+))) %>% kable_styling(bootstrap_options = c("striped", "hover", "responsive"))
+
+```
+
+```{r group, warning=F, message=F}
+# check age differences
+anovaBF(age ~ group, data = df.sub)
+ggplot(df.sub, aes(x = group, y = age, fill = group)) +
+  geom_boxplot() + theme_minimal()
+
+# check iq differences
+anovaBF(iq ~ group, data = df.sub %>% filter(!is.na(iq)))
+ggplot(df.sub, aes(x = group, y = iq, fill = group)) +
+  geom_boxplot() + theme_minimal()
+
+# check gender
+tb.gen = xtabs(~ gender + group, data = df.sub)
+contingencyTableBF(tb.gen, sampleType = "indepMulti", fixedMargin = "cols")
+df.sub %>% count(gender, group) %>% ggplot() + geom_mosaic(aes(x = product(group), fill = gender))
+
+```
