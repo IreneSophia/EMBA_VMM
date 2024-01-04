@@ -234,6 +234,26 @@ if (nrow(df.sub %>% filter(is.na(MWT_iq))) > 0) {
   write_csv(df.sub %>% filter(is.na(MWT_iq)) %>% select(PID), file = "PID_iq_missing.csv")
 }
 
-# save values with two different separators
-write_delim(df.sub, file = "EMBA_centraXX.txt", delim = ";")
+# categorise the groups and gender
+df.sub = df.sub %>%
+  mutate(
+    diagnosis = as.factor(case_when(
+      ASD  == 1 ~ "ASD",
+      ADHD == 1 ~ "ADHD",
+      TRUE ~ "CTR"
+    )),
+    gender_desc = gender,
+    gender = as.factor(case_when(
+      grepl("männlich|male|m", gender_desc, ignore.case = TRUE) ~ "mal",
+      grepl("weiblich|female|w|f", gender_desc, ignore.case = TRUE) ~"fem",
+      TRUE ~ "dan")
+    )
+  ) %>%
+  relocate(PID, diagnosis, gender) %>%
+  rename("subID" = "PID")
+
+# check if someone has to be excluded
+nrow(df.sub %>% filter(iq <= 70))
+
+# save everything
 write_csv(df.sub, file = "EMBA_centraXX.csv")
