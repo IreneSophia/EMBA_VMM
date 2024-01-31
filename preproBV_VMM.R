@@ -157,11 +157,13 @@ nrow(df.inc) - nsub
 df.disc = df.tsk %>%
   group_by(subID) %>%
   summarise(
-    hits = sum(sdt == "hit", na.rm = T),
-    faal = sum(sdt == "faal", na.rm = T),
+    hits  = sum(sdt == "hit", na.rm = T),
+    faal  = sum(sdt == "faal", na.rm = T),
+    n.trl = max(trl, na.rm = T)
   ) %>%
+  # for two participants, one run is missing
   mutate(
-    disc = hits - faal
+    disc = round(240*(hits - faal)/n.trl)
   )
 
 # save the data frame
