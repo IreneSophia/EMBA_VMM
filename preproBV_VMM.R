@@ -115,6 +115,8 @@ df.tsk = data.frame(sub, run, trl, rt, sdt) %>%
 
 rm(list = c("df.log1","df.log2"))
 
+nsub = length(unique(df.tsk$subID))
+
 # remove participants who missed more than 1/3 of fixation cross changes per run
 # or more than 1/3 of false alarms in one of the runs
 df.tsk = df.tsk %>%
@@ -131,10 +133,8 @@ df.tsk = df.tsk %>%
   filter(max.miss < 0.33 & max.faal < 0.33) %>%
   ungroup()
 
-nsub = length(unique(df.tsk$subID))
-
 # how many people were excluded due to behavioural data?
-nrow(df.inc) - nsub
+nsub - length(unique(df.tsk$subID))
 
 # save the IDs of the excluded participants
 exc = setdiff(unique(sub), unique(as.character(df.tsk$subID)))
