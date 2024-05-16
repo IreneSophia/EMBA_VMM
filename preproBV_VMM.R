@@ -1,14 +1,6 @@
-library(knitr)           # kable
 library(tidyverse)       # tibble stuff
-library(ggplot2)         # plots
-library(ggstatsplot)     # ggplot with stats
-library(ggpubr)          # background image
-library(png)             # readPNG
 
 dt.path = paste('/home/emba/Documents/EMBA', 'BVET', sep = "/")
-
-# participants from whom we can use the MRI data
-df.inc  = read_csv(file.path(dt.path, 'df_VMM_include.csv'))
 
 # load the relevant data in long format: only people with separate logs for runs
 df.log1 = list.files(path = dt.path, pattern = "*task-.*\\.tsv$", full.names = T) %>%
@@ -22,21 +14,12 @@ df.log1 = list.files(path = dt.path, pattern = "*task-.*\\.tsv$", full.names = T
 # load the relevant data in long format: only people with one log for both runs
 df.log2 = list.files(path = dt.path, pattern = "*task.tsv$", full.names = T) %>%
   setNames(nm = .) %>%
-  map_df(~read_delim(., show_col_types = F, delim = "\t"), .id = "Filename") %>%
-  group_by(Subject, `Event Type`) %>%
+  map_df(~read_delim(., show_col_types = F, delim = "\t")) %>%
   mutate(
-    Run = case_when(`Event Type` == "Pulse" ~ row_number())
-  ) %>% select(-Filename) %>% 
-  ungroup() %>%
-  fill(Run, .direction = "up") %>%
-  mutate(
-    Run = case_when(Run <= 380 ~ 1, TRUE ~ 2)
+    Run = case_when(Trial <= 2504 ~ 1, TRUE ~ 2)
   )
 # bind them together
 df.log = rbind(df.log1, df.log2)
-
-# merge with subjects
-df.log = merge(df.inc, df.log, all.x = T)
 
 # only rows relevant for answer
 df.logresp = df.log %>% 
@@ -153,6 +136,10 @@ nsub = length(unique(df.tsk$subID))
 # how many people were excluded due to behavioural data?
 nrow(df.inc) - nsub
 
+# save the IDs of the excluded participants
+exc = setdiff(unique(sub), unique(as.character(df.tsk$subID)))
+write(exc, file = file.path(dt.path, "VMM_exc.txt"))
+
 # create a data frame with discrimination rate
 df.disc = df.tsk %>%
   group_by(subID) %>%
@@ -161,7 +148,7 @@ df.disc = df.tsk %>%
     faal  = sum(sdt == "faal", na.rm = T),
     n.trl = max(trl, na.rm = T)
   ) %>%
-  # for two participants, one run is missing
+  # for two participants, one run is missing 
   mutate(
     disc = round(240*(hits - faal)/n.trl)
   )
