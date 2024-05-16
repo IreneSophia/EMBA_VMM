@@ -107,7 +107,8 @@ df.tsk = data.frame(sub, run, trl, rt, sdt) %>%
     iqr   = IQR(rt, na.rm = T),
     cl    = quantile(rt, probs = c(.75), na.rm = T) + 1.5 * iqr,
     fl    = quantile(rt, probs = c(.25), na.rm = T) - 1.5 * iqr,
-    rtc   = ifelse(rt > cl | rt < fl, NA, rt),
+    # exclude rts with IQR method and also if they are faster than 100ms
+    rtc   = ifelse(rt > cl | rt < fl | rt < 100, NA, rt), 
     sdt   = as.factor(case_when(rt <= 2000 ~ sdt,
                                 rt >  2000 ~ "miss", # answers slower than this are counted as misses
                                 is.na(rt)  ~ sdt))
