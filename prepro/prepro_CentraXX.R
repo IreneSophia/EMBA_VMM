@@ -7,7 +7,7 @@ setwd("/home/emba/Documents/EMBA/CentraXX")
 
 # load raw data
 # columns of Interest: internalStudyMemberID, name2, code, value, section, (valueIndex), numericValue
-df = read_csv("EMOPRED_20241001.csv", show_col_types = F, locale = locale(encoding = "ISO-8859-1")) %>%
+df = read_delim("EMOPRED_2024_11_20.csv", show_col_types = F, delim = ";") %>%
   select(internalStudyMemberID, date, name2, code, value, section, numericValue) %>%
   filter(internalStudyMemberID != "NEVIA_test" & !is.na(name2)) %>%
   rename("questionnaire" = "name2", 
@@ -240,10 +240,12 @@ if (nrow(df.sub %>% filter(is.na(MWT_iq))) > 0) {
 # categorise the groups and gender
 df.sub = df.sub %>%
   mutate(
+    ASD  = as.numeric(ASD),
+    ADHD = as.numeric(ADHD),
     diagnosis = as.factor(case_when(
-      ASD == 1 & ADHD == 1 ~ "BOTH",
+      ASD  == 1 & ADHD  == 1                ~ "BOTH",
       ASD  == 1 & (ADHD == 0 | is.na(ADHD)) ~ "ASD",
-      ADHD == 1 & (ASD == 0 | is.na(ASD)) ~ "ADHD",
+      ADHD == 1 & (ASD  == 0 | is.na(ASD))  ~ "ADHD",
       TRUE ~ "COMP"
     )),
     gender_desc = gender,
