@@ -1,0 +1,16 @@
+#!/bin/bash
+
+while ! [ -f "/home/emba/Documents/EMBA/EMBA_VMM_scripts/_brms_SBC_cache/res_VMM_rtc_full_sub_02.rds" ];
+do 
+
+	echo "Starting R script." >> "/home/emba/Insync/10planki@gmail.com/Google Drive/NEVIA/logfiles/log_VMM-rtc.txt"
+	
+	Rscript brms-analyses_VMM-i.R
+	
+done
+
+echo "DONE. Shutting down." >> "/home/emba/Insync/10planki@gmail.com/Google Drive/NEVIA/logfiles/log_VMM-rtc.txt"
+
+sleep 600
+
+/sbin/shutdown -h now
