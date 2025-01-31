@@ -115,7 +115,7 @@ if (!file.exists("VMM_data.RData")) {
   load(file.path(dt.path, "VMM_preprocessed.RData"))
   
   # load list of participants which are included in the fMRI analysis
-  df.inc = read_delim(file.path(fl.path, "VMM_analysis/all_use-new")) %>%
+  df.inc = read_delim(file.path(fl.path, "VMM_analysis/01_FSL/all_use-new")) %>%
     filter(diagnosis != "pilot") %>% select(subID)
   
   # load list of participants which are included in fMRI ET analysis
@@ -194,7 +194,7 @@ if (!file.exists("VMM_data.RData")) {
       rBDI   = rank(BDI_total),
       rIQ    = rank(iq),
       rRAADS = rank(RAADS_total),
-      rTAS   = rank(TAS_total),
+      rTAS   = if_else(is.na(TAS_total), NA, rank(TAS_total)),  # one person is missing the TAS!
       diagnosis = as.factor(diagnosis)
     )
   
@@ -204,7 +204,7 @@ if (!file.exists("VMM_data.RData")) {
   aov.BDI   = anovaBF(rBDI   ~ diagnosis, data = df.sub)
   aov.ASRS  = anovaBF(rASRS  ~ diagnosis, data = df.sub)
   aov.RAADS = anovaBF(rRAADS ~ diagnosis, data = df.sub)
-  aov.TAS   = anovaBF(rTAS   ~ diagnosis, data = df.sub)
+  aov.TAS   = anovaBF(rTAS   ~ diagnosis, data = df.sub %>% filter(!is.na(rTAS)))
   
   # ...and put everything in a new dataframe for printing
   measurement  = "Age"
@@ -310,9 +310,9 @@ if (!file.exists("VMM_data.RData")) {
                  sd(df.sub[df.sub$diagnosis == "ADHD",]$TAS_total)/
                    sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
          sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ASD",]$TAS_total), 
-                 sd(df.sub[df.sub$diagnosis == "ASD",]$TAS_total)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",]))),
+                 mean(df.sub[df.sub$diagnosis == "ASD",]$TAS_total, na.rm = T), 
+                 sd(df.sub[df.sub$diagnosis == "ASD",]$TAS_total, na.rm = T)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD" & !is.na(df.sub$TAS_total),]))),
          sprintf("%.2f (±%.2f)", 
                  mean(df.sub[df.sub$diagnosis == "COMP",]$TAS_total), 
                  sd(df.sub[df.sub$diagnosis == "COMP",]$TAS_total)/

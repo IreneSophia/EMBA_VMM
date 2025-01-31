@@ -7,7 +7,7 @@ setwd("/home/emba/Documents/EMBA/CentraXX")
 
 # load raw data
 # columns of Interest: internalStudyMemberID, name2, code, value, section, (valueIndex), numericValue
-df = read_delim("EMOPRED_2024_11_20.csv", show_col_types = F, delim = ";") %>%
+df = read_csv("EMOPRED_20250127.csv", show_col_types = F) %>%
   select(internalStudyMemberID, date, name2, code, value, section, numericValue) %>%
   filter(internalStudyMemberID != "NEVIA_test" & !is.na(name2)) %>%
   rename("questionnaire" = "name2", 
@@ -128,7 +128,7 @@ df.demo = df %>% filter(questionnaire == "PSY_NEVIA_DEMO") %>%
                   `PSY_PIPS_Demo_Metall/metal` = "metal",
                   `PSY_NEVIA_emotiontraining` = "emoTrain",
                   `PSY_NEVIA_fallsja_4` = "emotrainDetails"),
-    item = gsub("^PSY_NEVIA_DEMO_.*", "cis", item),
+    item = gsub("^PSY_NEVIA_DEMO_Geschlechtsiden.*", "cis", item, useBytes = TRUE),
     value = gsub("^(Keine|Nein|keine).*", "0", value),
     value = gsub("^Ja", "1", value)
   )
@@ -222,7 +222,8 @@ df.sub = df.sub %>%
 
 # load csv with PIDs and IQs from other studies
 df.iqs = read_delim(file = paste("PID_iq.csv", sep = "/"), show_col_types = F) %>%
-  select(PID, MWT_iq, CFT_iq) %>% drop_na()
+  select(PID, MWT_iq, CFT_iq) %>% drop_na() %>% 
+  filter(nchar(PID) == 10)
 
 # update our df.sub with these values
 df.sub = rows_update(df.sub, df.iqs) %>%
@@ -250,7 +251,7 @@ df.sub = df.sub %>%
     )),
     gender_desc = gender,
     gender = as.factor(case_when(
-      grepl("männlich|male|m", gender_desc, ignore.case = TRUE) ~ "mal",
+      grepl("männlich|male|m|Geb. weiblich", gender_desc, ignore.case = TRUE) ~ "mal",
       grepl("weiblich|female|w|f", gender_desc, ignore.case = TRUE) ~"fem",
       TRUE ~ "dan")
     )
@@ -261,5 +262,57 @@ df.sub = df.sub %>%
 # check if someone has to be excluded
 nrow(df.sub %>% filter(iq <= 70))
 
+# add the ICD codes
+df.sub = df.sub %>%
+  mutate(
+    ASD.icd10 = case_when(
+      diagnosis == "COMP" | diagnosis == "ADHD" ~ '',
+      grepl(".0", ASDcode) ~ 'F84.0', # childhood
+      grepl(".1", ASDcode) ~ 'F84.1', # atypical
+      grepl(".5", ASDcode) ~ 'F84.5'  # asperger
+    )
+  ) %>% 
+  merge(.,
+        read_csv(list.files(pattern = ".*_code.csv")) %>%
+          select(subID, Code, Group),
+        all = T
+        ) %>%
+  filter(Group != "NOT") %>%
+  mutate(
+    ASD.icd10 = case_when(
+      diagnosis == "COMP" | diagnosis == "ADHD" ~ ASD.icd10,
+      !is.na(ASD.icd10) & ASD.icd10 == Code ~ ASD.icd10,
+      is.na(ASD.icd10) ~ Code,
+      T ~ sprintf("CHECK: %s or %s", Code, ASD.icd10)
+    ),
+    adhd.meds = case_when(
+      grepl("elvans|elvanz", meds, ignore.case = T) ~ "lisdexamfetamine",
+      grepl("ritalin|methylphenidat|medikinet", meds, ignore.case = T) ~ "methylphenidate",
+      grepl("atomoxetin", meds, ignore.case = T) ~ "atomoxetine", 
+      grepl("attentin", meds, ignore.case = T) ~ "amphetamine", 
+      grepl("atomoxetin|atofab", meds, ignore.case = T) ~ "atomoxetin" 
+    ),
+    dep.meds = case_when(
+      grepl("escitalopram|citalopram|fluoxetin|sertralin", meds, ignore.case = T) ~ "SSRI",
+      grepl("venlafaxin|wenlaflaxin", meds, ignore.case = T) ~ "SSNRI",
+      grepl("milnacipran", meds, ignore.case = T) ~ "SNRI",
+      grepl("bupropion|Buproprion", meds, ignore.case = T) ~ "atypical",
+      grepl("lithium|quilonum", meds, ignore.case = T) ~ "lithium",
+      grepl("imipramin|mirtazipin", meds, ignore.case = T) ~ "TCA"
+    ),
+    psych.meds = case_when(
+      grepl("Risperidon|amisulprid|aripiprazol|quetapin|quetiapin", meds, ignore.case = T) ~ "atypical antipsychotic",
+      grepl("Pregabalin", meds, ignore.case = T) ~ "antiepileptic",
+      grepl("pipamperon", meds, ignore.case = T) ~ "typical antipsychotic"
+    ),
+    cis       = if_else(as.numeric(cis)==1, "cis", "trans")
+  )
+
+# save just the code info to check 
+write_csv(df.sub %>% 
+            select(date, subID, diagnosis, Code, ASD.icd10) %>% 
+            filter(substr(ASD.icd10, 1, 5) == "CHECK"), 
+          file = "EMBA_CodeCentraXX.csv")
+
 # save everything
-write_csv(df.sub, file = "EMBA_centraXX.csv")
+write_csv(df.sub %>% select(-Group, -Code) %>% filter(!is.na(diagnosis)), file = "EMBA_centraXX.csv")
