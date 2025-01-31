@@ -72,9 +72,3 @@ if (!file.exists(file.path(dt.path, "VMM_fixations.rds"))) {
   df.fix = readRDS(file.path(dt.path, "VMM_fixations.rds"))
 }
 
-### MOVE TO RMARKDOWN
-
-
-
-ggplot(df.fix.agg, aes(x = fix.prop, fill = diagnosis)) +
-  geom_density(alpha = 0.5) + xlim(0, 1) + theme_bw()
