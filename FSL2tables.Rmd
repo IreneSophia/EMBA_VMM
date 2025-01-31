@@ -1,0 +1,87 @@
+---
+title: "VMM FSL tables"
+author: "I S Plank"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = './results_sig')
+library(knitr)
+library(tidyverse)
+
+```
+
+## Combine FSL output
+
+```{r table, message=FALSE}
+
+# get one type of input from each contrast
+ls.files = dir(pattern = '.*MNI-AAL.csv')
+
+for (file in ls.files) {
+  contrast = gsub("_MNI-AAL.csv", "", file)
+  type     = substr(contrast, nchar(contrast)-5, nchar(contrast)-5)
+  maxima   = read_csv(file, show_col_types = F)
+  if (nrow(maxima) == 0) next
+  summary  = read_delim(paste0(contrast, '_cluster-summary.txt'), 
+                        show_col_types = F)
+  output   = read_delim(paste0(contrast, '_randomise_output_all.txt'), 
+                        show_col_types = F)
+  
+  relinfo  = 
+    merge(
+      output %>% select(`Cluster Index`, Voxels), 
+      maxima %>% select(`Cluster Index`, `Value`, MNIx, MNIy, MNIz, AALname)
+      ) %>%
+    mutate(
+      H = if_else(MNIx >= 0, "R", "L")
+    ) %>%
+    rename(
+      `Cluster size` = "Voxels", 
+      "Region" = "AALname",
+      "x" = "MNIx",
+      "y" = "MNIy",
+      "z" = "MNIz"
+    ) %>%
+    arrange(desc(`Cluster Index`), desc(Value)) %>%
+    relocate(`Cluster Index`, Region, `Cluster size`, H)
+  colnames(relinfo)[colnames(relinfo) == "Value"] = paste0(type, "-value")
+  
+  write_csv(relinfo, file = paste0(contrast, '.csv'))
+  
+}
+
+```
+
+## Hypothesis-guided ROI analysis
+
+```{r hypo}
+
+# COMP: same areas as Stefanics et al. (2019), Neuroimage
+
+read_csv('hgf_ctr_eps_c_ROI_fstat1.csv', show_col_types = F) %>%
+  kable(., caption = 'COMP: colour prediction error')
+
+read_csv('hgf_ctr_mu_e_ROI_fstat1.csv', show_col_types = F) %>%
+  kable(., caption = 'COMP: emotion prediction strength')
+
+# pooled: same areas as Stefanics et al. (2019), Neuroimage
+
+read_csv('hgf_all_eps_c_ROI_fstat1.csv', show_col_types = F) %>%
+  kable(., caption = 'Pooled: colour prediction error')
+
+read_csv('hgf_all_mu_c_ROI_fstat1.csv', show_col_types = F) %>%
+  kable(., caption = 'Pooled: colour prediction strength')
+
+read_csv('hgf_all_mu_e_ROI_fstat1.csv', show_col_types = F) %>%
+  kable(., caption = 'Pooled: emotion prediction strength')
+
+# Neural adaptation
+
+read_csv('smp_adapt_neg_ROI_tstat1.csv', show_col_types = F) %>%
+  kable(., caption = 'ALL: repetition suppression')
+
+```
