@@ -11,6 +11,8 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = './results_sig')
 library(knitr)
 library(tidyverse)
+library(ggpubr)
+library(ggrain)
 
 ```
 
@@ -83,5 +85,74 @@ read_csv('hgf_all_mu_e_ROI_fstat1.csv', show_col_types = F) %>%
 
 read_csv('smp_adapt_neg_ROI_tstat1.csv', show_col_types = F) %>%
   kable(., caption = 'ALL: repetition suppression')
+
+```
+
+## Plotting
+
+Plot the participants' activation in clusters larger than 100 voxels to visualise the effects. 
+
+```{r plot}
+
+# custom colour palette
+custom.col = c("#009E73", "#D55E00", "#0058b2", "#CC79A7")
+
+# load in the extracted activation
+df.act = read_csv(file.path("fMRI_data", "grp_use-sorted.csv"), 
+                  show_col_types = F) %>%
+  mutate(
+    diagnosis = fct_recode(diagnosis, 
+                           "COMP" = "CTR")
+  ) %>%
+  select(diagnosis) %>%
+  mutate(
+    # load zstats for eps-c
+    `eps_colour-rFG`  = scan(file.path("fMRI_data", "eps_c_C7_meants.txt")),
+    `eps_colour-rSTS` = scan(file.path("fMRI_data", "eps_c_C6_meants.txt")),
+    `eps_colour-rINS` = scan(file.path("fMRI_data", "eps_c_C5_meants.txt")),
+    `eps_colour-rACC` = scan(file.path("fMRI_data", "eps_c_C4_meants.txt")),
+    # load zstats for mu-z
+    `mu_colour-rINS`  = scan(file.path("fMRI_data", "mu_c_C3_meants.txt")),
+    `mu_colour-lINS`  = scan(file.path("fMRI_data", "mu_c_C4_meants.txt")),
+    `mu_colour-rACC`  = scan(file.path("fMRI_data", "mu_c_C5_meants.txt")),
+    `mu_colour-rSMG`  = scan(file.path("fMRI_data", "mu_c_C6_meants.txt")),
+    `mu_colour-PRC`   = scan(file.path("fMRI_data", "mu_c_C7_meants.txt")),
+    # load zstats for mu-e
+    `mu_emotion-rPRC`  = scan(file.path("fMRI_data", "mu_e_C4_meants.txt")),
+    `mu_emotion-rFG`   = scan(file.path("fMRI_data", "mu_e_C3_meants.txt")),
+    `mu_emotion-lFG`   = scan(file.path("fMRI_data", "mu_e_C2_meants.txt")),
+    # load zstat for neural adaptation
+    `adaptation-rFG`  = scan(file.path("fMRI_data", "adapt_meants.txt"))
+  ) %>%
+  pivot_longer(cols = -diagnosis, names_to = c("parameter", "region"), 
+               names_sep = "-", values_to = "activation")
+
+# plot 
+df.act %>%
+  ggplot(aes(region, activation, fill = diagnosis, colour = diagnosis)) + #
+  geom_rain(rain.side = 'r',
+boxplot.args = list(color = "black", outlier.shape = NA, show.legend = FALSE, alpha = .8),
+violin.args = list(color = "black", outlier.shape = NA, alpha = .6),
+boxplot.args.pos = list(
+  position = ggpp::position_dodgenudge(x = 0, width = 0.3), width = 0.3
+),
+point.args = list(show_guide = FALSE, alpha = .5),
+violin.args.pos = list(
+  width = 0.6, position = position_nudge(x = 0.16)),
+point.args.pos = list(position = ggpp::position_dodgenudge(x = -0.25, width = 0.1))) +
+  scale_fill_manual(values = custom.col) +
+  scale_color_manual(values = custom.col) +
+  labs(title = "Neural correlates", x = "", y = "z-stat") + 
+  facet_grid(. ~ parameter, scales = "free", space = "free") +
+  geom_hline(yintercept = 0) +
+  theme_bw() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5), 
+        legend.direction = "horizontal", 
+        text = element_text(size = 12, family = "mono", face = "bold")
+        )
+
+ggsave("neural_zstat.pdf",
+       units  = "mm", width  = 270, height = 100, dpi    = 300)
 
 ```
