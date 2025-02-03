@@ -8,7 +8,6 @@ output: word_document
 ```{r setup, include=FALSE}
 
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = './results_sig')
 library(knitr)
 library(tidyverse)
 library(ggpubr)
@@ -21,16 +20,18 @@ library(ggrain)
 ```{r table, message=FALSE}
 
 # get one type of input from each contrast
-ls.files = dir(pattern = '.*MNI-AAL.csv')
+ls.files = dir(pattern = '.*MNI-AAL.csv', path = "./results_sig")
 
 for (file in ls.files) {
   contrast = gsub("_MNI-AAL.csv", "", file)
   type     = substr(contrast, nchar(contrast)-5, nchar(contrast)-5)
-  maxima   = read_csv(file, show_col_types = F)
+  maxima   = read_csv(file.path("results_sig", file), show_col_types = F)
   if (nrow(maxima) == 0) next
-  summary  = read_delim(paste0(contrast, '_cluster-summary.txt'), 
+  summary  = read_delim(file.path("results_sig", 
+                                  paste0(contrast, '_cluster-summary.txt')), 
                         show_col_types = F)
-  output   = read_delim(paste0(contrast, '_randomise_output_all.txt'), 
+  output   = read_delim(file.path("results_sig", 
+                                  paste0(contrast, '_randomise_output_all.txt')), 
                         show_col_types = F)
   
   relinfo  = 
@@ -52,7 +53,7 @@ for (file in ls.files) {
     relocate(`Cluster Index`, Region, `Cluster size`, H)
   colnames(relinfo)[colnames(relinfo) == "Value"] = paste0(type, "-value")
   
-  write_csv(relinfo, file = paste0(contrast, '.csv'))
+  write_csv(relinfo, file = file.path("results_sig", paste0(contrast, '.csv')))
   
 }
 
@@ -64,26 +65,26 @@ for (file in ls.files) {
 
 # COMP: same areas as Stefanics et al. (2019), Neuroimage
 
-read_csv('hgf_ctr_eps_c_ROI_fstat1.csv', show_col_types = F) %>%
+read_csv(file.path("results_sig", 'hgf_ctr_eps_c_ROI_fstat1.csv'), show_col_types = F) %>%
   kable(., caption = 'COMP: colour prediction error')
 
-read_csv('hgf_ctr_mu_e_ROI_fstat1.csv', show_col_types = F) %>%
+read_csv(file.path("results_sig", 'hgf_ctr_mu_e_ROI_fstat1.csv'), show_col_types = F) %>%
   kable(., caption = 'COMP: emotion prediction strength')
 
 # pooled: same areas as Stefanics et al. (2019), Neuroimage
 
-read_csv('hgf_all_eps_c_ROI_fstat1.csv', show_col_types = F) %>%
+read_csv(file.path("results_sig", 'hgf_all_eps_c_ROI_fstat1.csv'), show_col_types = F) %>%
   kable(., caption = 'Pooled: colour prediction error')
 
-read_csv('hgf_all_mu_c_ROI_fstat1.csv', show_col_types = F) %>%
+read_csv(file.path("results_sig", 'hgf_all_mu_c_ROI_fstat1.csv'), show_col_types = F) %>%
   kable(., caption = 'Pooled: colour prediction strength')
 
-read_csv('hgf_all_mu_e_ROI_fstat1.csv', show_col_types = F) %>%
+read_csv(file.path("results_sig", 'hgf_all_mu_e_ROI_fstat1.csv'), show_col_types = F) %>%
   kable(., caption = 'Pooled: emotion prediction strength')
 
 # Neural adaptation
 
-read_csv('smp_adapt_neg_ROI_tstat1.csv', show_col_types = F) %>%
+read_csv(file.path("results_sig", 'smp_adapt_neg_ROI_tstat1.csv'), show_col_types = F) %>%
   kable(., caption = 'ALL: repetition suppression')
 
 ```
@@ -107,20 +108,20 @@ df.act = read_csv(file.path("fMRI_data", "grp_use-sorted.csv"),
   select(diagnosis) %>%
   mutate(
     # load zstats for eps-c
-    `eps_colour-rFG`  = scan(file.path("fMRI_data", "eps_c_C7_meants.txt")),
-    `eps_colour-rSTS` = scan(file.path("fMRI_data", "eps_c_C6_meants.txt")),
-    `eps_colour-rINS` = scan(file.path("fMRI_data", "eps_c_C5_meants.txt")),
-    `eps_colour-rACC` = scan(file.path("fMRI_data", "eps_c_C4_meants.txt")),
+    `PE colour-rFG`  = scan(file.path("fMRI_data", "eps_c_C7_meants.txt")),
+    `PE colour-rSTS` = scan(file.path("fMRI_data", "eps_c_C6_meants.txt")),
+    `PE colour-rINS` = scan(file.path("fMRI_data", "eps_c_C5_meants.txt")),
+    `PE colour-rACC` = scan(file.path("fMRI_data", "eps_c_C4_meants.txt")),
     # load zstats for mu-z
-    `mu_colour-rINS`  = scan(file.path("fMRI_data", "mu_c_C3_meants.txt")),
-    `mu_colour-lINS`  = scan(file.path("fMRI_data", "mu_c_C4_meants.txt")),
-    `mu_colour-rACC`  = scan(file.path("fMRI_data", "mu_c_C5_meants.txt")),
-    `mu_colour-rSMG`  = scan(file.path("fMRI_data", "mu_c_C6_meants.txt")),
-    `mu_colour-PRC`   = scan(file.path("fMRI_data", "mu_c_C7_meants.txt")),
+    `PS colour-rINS`  = scan(file.path("fMRI_data", "mu_c_C3_meants.txt")),
+    `PS colour-lINS`  = scan(file.path("fMRI_data", "mu_c_C4_meants.txt")),
+    `PS colour-rACC`  = scan(file.path("fMRI_data", "mu_c_C5_meants.txt")),
+    `PS colour-rSMG`  = scan(file.path("fMRI_data", "mu_c_C6_meants.txt")),
+    `PS colour-PRC`   = scan(file.path("fMRI_data", "mu_c_C7_meants.txt")),
     # load zstats for mu-e
-    `mu_emotion-rPRC`  = scan(file.path("fMRI_data", "mu_e_C4_meants.txt")),
-    `mu_emotion-rFG`   = scan(file.path("fMRI_data", "mu_e_C3_meants.txt")),
-    `mu_emotion-lFG`   = scan(file.path("fMRI_data", "mu_e_C2_meants.txt")),
+    `PS emotion-rPRC`  = scan(file.path("fMRI_data", "mu_e_C4_meants.txt")),
+    `PS emotion-rFG`   = scan(file.path("fMRI_data", "mu_e_C3_meants.txt")),
+    `PS emotion-lFG`   = scan(file.path("fMRI_data", "mu_e_C2_meants.txt")),
     # load zstat for neural adaptation
     `adaptation-rFG`  = scan(file.path("fMRI_data", "adapt_meants.txt"))
   ) %>%
@@ -136,7 +137,7 @@ violin.args = list(color = "black", outlier.shape = NA, alpha = .6),
 boxplot.args.pos = list(
   position = ggpp::position_dodgenudge(x = 0, width = 0.3), width = 0.3
 ),
-point.args = list(show_guide = FALSE, alpha = .5),
+point.args = list(show_guide = FALSE, alpha = .5, size = 0.5),
 violin.args.pos = list(
   width = 0.6, position = position_nudge(x = 0.16)),
 point.args.pos = list(position = ggpp::position_dodgenudge(x = -0.25, width = 0.1))) +
