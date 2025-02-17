@@ -6,7 +6,7 @@ n.trl = 240
 
 # file paths
 dt.path1 = paste('/home/emba/Documents/EMBA', 'BVET', sep = "/")
-dt.path2 = paste('/home/emba/Documents/EMBA', 'BVET-Nacherhebung', sep = "/")
+dt.path2 = paste('/home/emba/Documents/EMBA', 'BVET-addMRI', sep = "/")
 
 # load the relevant data in long format: only people with separate logs for runs
 df.log1 = c(list.files(path = dt.path1, pattern = "*task-.*\\.tsv$", full.names = T),
@@ -39,7 +39,7 @@ df.logresp = df.log %>%
                     lag(`trl(num)`) == max_trl & lag(`type(str)`) == "fix" ~ 2
                     )
   ) %>%
-  fill(use, .direction = "down") %>%
+  fill(c(`cnd(num)`, use), .direction = "down") %>%
   filter(use == 1) %>%
   # label the trials based on the flip 
   group_by(Subject, `flp_rel(num)`) %>%
@@ -50,8 +50,12 @@ df.logresp = df.log %>%
   group_by(Subject, run) %>%
   mutate(
     button = as.numeric(Code),
-    onset  = Time / 10 # convert to milliseconds
+    onset  = Time / 10, # convert to milliseconds
+    # track which change happened last and when
+    change = if_else(lag(`cnd(num)`) != `cnd(num)`, paste0(lag(`cnd(num)`), `cnd(num)`), NA), 
+    time_c = if_else(lag(`cnd(num)`) != `cnd(num)`, onset, NA) 
   ) %>%
+  fill(c(change, time_c), .direction = "down") %>% 
   # concentrate on the flips and the button presses
   filter(`Event Type` == 'Response' | `flp_rel(num)`) %>%
   mutate(
@@ -63,14 +67,26 @@ df.logresp = df.log %>%
       # hits are responses immediately following a flip
       lag(`flp_rel(num)`) == 1 & `Event Type` == 'Response' ~ "hit"
     ),
-    rt = if_else(sdt == "hit", onset - lag(onset), NA)
+    rt = if_else(sdt == "hit", onset - lag(onset), NA),
+    # how long since last change in colour or emotion?
+    time_since_c = if_else(`flp_rel(num)` == 1, onset - time_c, NA),
+    # which one is the relative change?
+    rel_change   = if_else(`flp_rel(num)` == 1, change, NA) 
   ) %>% 
-  fill(trl, .direction = "down") %>%
+  fill(c(time_since_c, rel_change, trl), .direction = "down") %>%
   filter(`Event Type` == 'Response' & button != 5) %>%
   rename(
     "subID" = "Subject"
   ) %>%
-  select(subID, run, trl, sdt, rt) %>%
+  # recode to capture what the change was (colour, emotion or both)
+  mutate(
+    which_change = case_when(
+      rel_change == "42" | rel_change == "24" | rel_change == "13" | rel_change == "31" ~ "emo",
+      rel_change == "43" | rel_change == "34" | rel_change == "12" | rel_change == "21" ~ "colour",
+      T ~ "both" 
+    ) 
+  ) %>%
+  select(subID, run, trl, sdt, rt, rel_change, which_change, time_since_c) %>%
   mutate(across(where(is.character), as.factor))
 
 df.tsk = df.logresp %>%
