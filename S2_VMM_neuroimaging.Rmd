@@ -1,0 +1,292 @@
+---
+title: "S2: Neuroimaging preprocessing and interpreting results"
+author: "I S Plank"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(tidyverse)
+library(ggpubr)
+library(ggrain)
+library(BayesFactor)
+library(rstatix)
+library(effectsize)
+
+```
+
+# fMRPrep
+
+Results included in this manuscript come from preprocessing
+performed using *fMRIPrep* 23.0.2
+(@fmriprep1; @fmriprep2; RRID:SCR_016216),
+which is based on *Nipype* 1.8.6
+(@nipype1; @nipype2; RRID:SCR_002502).
+
+## Preprocessing of B<sub>0</sub> inhomogeneity mappings
+
+A total of 2 fieldmaps were found available within the input BIDS structure for this particular subject. A *B<sub>0</sub>*-nonuniformity map (or *fieldmap*) was estimated based on two (or more) echo-planar imaging (EPI) references  with `topup` (@topup; FSL 6.0.5.1:57b01774).
+
+## Anatomical data preprocessing
+
+A total of 2 T1-weighted (T1w) images were found within the input BIDS dataset. All of them were corrected for intensity non-uniformity (INU) with `N4BiasFieldCorrection` [@n4], distributed with ANTs 2.3.3 [@ants, RRID:SCR_004757]. The T1w-reference was then skull-stripped with a *Nipype* implementation of the `antsBrainExtraction.sh` workflow (from ANTs), using OASIS30ANTs as target template. Brain tissue segmentation of cerebrospinal fluid (CSF), white-matter (WM) and gray-matter (GM) was performed on the brain-extracted T1w using `fast` [FSL 6.0.5.1:57b01774, RRID:SCR_002823, @fsl_fast]. An anatomical T1w-reference map was computed after registration of 2 T1w images (after INU-correction) using `mri_robust_template` [FreeSurfer 7.3.2, @fs_template]. Brain surfaces were reconstructed using `recon-all` [FreeSurfer 7.3.2, RRID:SCR_001847, @fs_reconall], and the brain mask estimated previously was refined with a custom variation of the method to reconcile ANTs-derived and FreeSurfer-derived segmentations of the cortical gray-matter of Mindboggle [RRID:SCR_002438, @mindboggle]. Volume-based spatial normalization to two standard spaces (MNI152NLin6Asym, MNI152NLin2009cAsym) was performed through nonlinear registration with `antsRegistration` (ANTs 2.3.3), using brain-extracted versions of both T1w reference and the T1w template. The following templates were were selected for spatial normalization and accessed with *TemplateFlow* [23.0.0, @templateflow]: *FSL's MNI ICBM 152 non-linear 6th Generation Asymmetric Average Brain Stereotaxic Registration Model* [@mni152nlin6asym, RRID:SCR_002823; TemplateFlow ID: MNI152NLin6Asym], *ICBM 152 Nonlinear Asymmetrical template version 2009c* [@mni152nlin2009casym, RRID:SCR_008796; TemplateFlow ID: MNI152NLin2009cAsym].
+
+## Functional data preprocessing
+
+For each of the 2 BOLD runs found per subject (across all tasks and sessions), the following preprocessing was performed. First, a reference volume and its skull-stripped version were generated  using a custom methodology of *fMRIPrep*. Head-motion parameters with respect to the BOLD reference (transformation matrices, and six corresponding rotation and translation parameters) are estimated before any spatiotemporal filtering using `mcflirt` [FSL 6.0.5.1:57b01774, @mcflirt]. The estimated *fieldmap* was then aligned with rigid-registration to the target EPI (echo-planar imaging) reference run. The field coefficients were mapped on to the reference EPI using the transform. BOLD runs were slice-time corrected to 1.18s (0.5 of slice acquisition range 0s-2.37s) using `3dTshift` from AFNI  [@afni, RRID:SCR_005927]. The BOLD reference was then co-registered to the T1w reference using `bbregister` (FreeSurfer) which implements boundary-based registration [@bbr]. Co-registration was configured with six degrees of freedom. Several confounding time-series were calculated based on the *preprocessed BOLD*: framewise displacement (FD), DVARS and three region-wise global signals. FD was computed using two formulations following Power (absolute sum of relative motions, @power_fd_dvars) and Jenkinson (relative root mean square displacement between affines, @mcflirt). FD and DVARS are calculated for each functional run, both using their implementations in *Nipype* [following the definitions by @power_fd_dvars]. The three global signals are extracted within the CSF, the WM, and the whole-brain masks. Additionally, a set of physiological regressors were extracted to allow for component-based noise correction [*CompCor*, @compcor]. Principal components are estimated after high-pass filtering the *preprocessed BOLD* time-series (using a discrete cosine filter with 128s cut-off) for the two *CompCor* variants: temporal (tCompCor) and anatomical (aCompCor). tCompCor components are then calculated from the top 2% variable voxels within the brain mask. For aCompCor, three probabilistic masks (CSF, WM and combined CSF+WM) are generated in anatomical space. The implementation differs from that of Behzadi et al. in that instead of eroding the masks by 2 pixels on BOLD space, a mask of pixels that likely contain a volume fraction of GM is subtracted from the aCompCor masks. This mask is obtained by dilating a GM mask extracted from the FreeSurfer's *aseg* segmentation, and it ensures components are not extracted from voxels containing a minimal fraction of GM. Finally, these masks are resampled into BOLD space and binarized by thresholding at 0.99 (as in the original implementation). Components are also calculated separately within the WM and CSF masks. For each CompCor decomposition, the *k* components with the largest singular values are retained, such that the retained components' time series are sufficient to explain 50 percent of variance across the nuisance mask (CSF, WM, combined, or temporal). The remaining components are dropped from consideration. The head-motion estimates calculated in the correction step were also placed within the corresponding confounds file. The confound time series derived from head motion estimates and global signals were expanded with the inclusion of temporal derivatives and quadratic terms for each [@confounds_satterthwaite_2013]. Frames that exceeded a threshold of 0.5 mm FD or 1.5 standardized DVARS were annotated as motion outliers. Additional nuisance timeseries are calculated by means of principal components analysis of the signal found within a thin band (*crown*) of voxels around the edge of the brain, as proposed by [@patriat_improved_2017]. The BOLD time-series were resampled into standard space, generating a *preprocessed BOLD run in MNI152NLin6Asym space*. First, a reference volume and its skull-stripped version were generated  using a custom methodology of *fMRIPrep*. Automatic removal of motion artifacts using independent component analysis [ICA-AROMA, @aroma] was performed on the *preprocessed BOLD on MNI space* time-series after removal of non-steady state volumes and spatial smoothing with an isotropic, Gaussian kernel of 6mm FWHM (full-width half-maximum). Corresponding "non-aggresively" denoised runs were produced after such smoothing. Additionally, the "aggressive" noise-regressors were collected and placed in the corresponding confounds file. All resamplings can be performed with *a single interpolation step* by composing all the pertinent transformations (i.e. head-motion transform matrices, susceptibility distortion correction when available, and co-registrations to anatomical and output spaces). Gridded (volumetric) resamplings were performed using `antsApplyTransforms` (ANTs), configured with Lanczos interpolation to minimize the smoothing effects of other kernels [@lanczos]. Non-gridded (surface) resamplings were performed using `mri_vol2surf` (FreeSurfer). 
+
+Many internal operations of *fMRIPrep* use *Nilearn* 0.9.1 [@nilearn, RRID:SCR_001362], mostly within the functional processing workflow. For more details of the pipeline, see [the section corresponding to workflows in *fMRIPrep*'s documentation](https://fmriprep.readthedocs.io/en/latest/workflows.html "FMRIPrep's documentation").
+
+### Copyright Waiver
+
+The above boilerplate text was automatically generated by fMRIPrep with the express intention that users should copy and paste this text into their manuscripts *unchanged*. It is released under the [CC0](https://creativecommons.org/publicdomain/zero/1.0/) license.
+
+### References
+
+Abraham, Alexandre, Fabian Pedregosa, Michael Eickenberg, Philippe Gervais, Andreas Mueller, Jean Kossaifi, Alexandre Gramfort, Bertrand Thirion, and Gael Varoquaux. 2014. “Machine Learning for Neuroimaging with Scikit-Learn.” Frontiers in Neuroinformatics 8. https://doi.org/10.3389/fninf.2014.00014.
+
+Andersson, Jesper L. R., Stefan Skare, and John Ashburner. 2003. “How to Correct Susceptibility Distortions in Spin-Echo Echo-Planar Images: Application to Diffusion Tensor Imaging.” NeuroImage 20 (2): 870–88. https://doi.org/10.1016/S1053-8119(03)00336-7.
+
+Avants, B. B., C. L. Epstein, M. Grossman, and J. C. Gee. 2008. “Symmetric Diffeomorphic Image Registration with Cross-Correlation: Evaluating Automated Labeling of Elderly and Neurodegenerative Brain.” Medical Image Analysis 12 (1): 26–41. https://doi.org/10.1016/j.media.2007.06.004.
+
+Behzadi, Yashar, Khaled Restom, Joy Liau, and Thomas T. Liu. 2007. “A Component Based Noise Correction Method (CompCor) for BOLD and Perfusion Based fMRI.” NeuroImage 37 (1): 90–101. https://doi.org/10.1016/j.neuroimage.2007.04.042.
+
+Ciric, R., William H. Thompson, R. Lorenz, M. Goncalves, E. MacNicol, C. J. Markiewicz, Y. O. Halchenko, et al. 2022. “TemplateFlow: FAIR-Sharing of Multi-Scale, Multi-Species Brain Models.” Nature Methods 19: 1568–71. https://doi.org/10.1038/s41592-022-01681-2.
+
+Cox, Robert W., and James S. Hyde. 1997. “Software Tools for Analysis and Visualization of fMRI Data.” NMR in Biomedicine 10 (4-5): 171–78. https://doi.org/10.1002/(SICI)1099-1492(199706/08)10:4/5<171::AID-NBM453>3.0.CO;2-L.
+
+Dale, Anders M., Bruce Fischl, and Martin I. Sereno. 1999. “Cortical Surface-Based Analysis: I. Segmentation and Surface Reconstruction.” NeuroImage 9 (2): 179–94. https://doi.org/10.1006/nimg.1998.0395.
+
+Esteban, Oscar, Ross Blair, Christopher J. Markiewicz, Shoshana L. Berleant, Craig Moodie, Feilong Ma, Ayse Ilkay Isik, et al. 2018. “fMRIPrep 23.0.2.” Software. https://doi.org/10.5281/zenodo.852659.
+
+Esteban, Oscar, Christopher Markiewicz, Ross W Blair, Craig Moodie, Ayse Ilkay Isik, Asier Erramuzpe Aliaga, James Kent, et al. 2019. “fMRIPrep: A Robust Preprocessing Pipeline for Functional MRI.” Nature Methods 16: 111–16. https://doi.org/10.1038/s41592-018-0235-4.
+
+Evans, AC, AL Janke, DL Collins, and S Baillet. 2012. “Brain Templates and Atlases.” NeuroImage 62 (2): 911–22. https://doi.org/10.1016/j.neuroimage.2012.01.024.
+
+Fonov, VS, AC Evans, RC McKinstry, CR Almli, and DL Collins. 2009. “Unbiased Nonlinear Average Age-Appropriate Brain Templates from Birth to Adulthood.” NeuroImage 47, Supplement 1: S102. https://doi.org/10.1016/S1053-8119(09)70884-5.
+
+Gorgolewski, K., C. D. Burns, C. Madison, D. Clark, Y. O. Halchenko, M. L. Waskom, and S. Ghosh. 2011. “Nipype: A Flexible, Lightweight and Extensible Neuroimaging Data Processing Framework in Python.” Frontiers in Neuroinformatics 5: 13. https://doi.org/10.3389/fninf.2011.00013.
+
+Gorgolewski, Krzysztof J., Oscar Esteban, Christopher J. Markiewicz, Erik Ziegler, David Gage Ellis, Michael Philipp Notter, Dorota Jarecka, et al. 2018. “Nipype.” Software. https://doi.org/10.5281/zenodo.596855.
+
+Greve, Douglas N, and Bruce Fischl. 2009. “Accurate and Robust Brain Image Alignment Using Boundary-Based Registration.” NeuroImage 48 (1): 63–72. https://doi.org/10.1016/j.neuroimage.2009.06.060.
+
+Jenkinson, Mark, Peter Bannister, Michael Brady, and Stephen Smith. 2002. “Improved Optimization for the Robust and Accurate Linear Registration and Motion Correction of Brain Images.” NeuroImage 17 (2): 825–41. https://doi.org/10.1006/nimg.2002.1132.
+
+Klein, Arno, Satrajit S. Ghosh, Forrest S. Bao, Joachim Giard, Yrjö Häme, Eliezer Stavsky, Noah Lee, et al. 2017. “Mindboggling Morphometry of Human Brains.” PLOS Computational Biology 13 (2): e1005350. https://doi.org/10.1371/journal.pcbi.1005350.
+
+Lanczos, C. 1964. “Evaluation of Noisy Data.” Journal of the Society for Industrial and Applied Mathematics Series B Numerical Analysis 1 (1): 76–85. https://doi.org/10.1137/0701007.
+
+Patriat, Rémi, Richard C. Reynolds, and Rasmus M. Birn. 2017. “An Improved Model of Motion-Related Signal Changes in fMRI.” NeuroImage 144, Part A (January): 74–82. https://doi.org/10.1016/j.neuroimage.2016.08.051.
+
+Power, Jonathan D., Anish Mitra, Timothy O. Laumann, Abraham Z. Snyder, Bradley L. Schlaggar, and Steven E. Petersen. 2014. “Methods to Detect, Characterize, and Remove Motion Artifact in Resting State fMRI.” NeuroImage 84 (Supplement C): 320–41. https://doi.org/10.1016/j.neuroimage.2013.08.048.
+
+Pruim, Raimon H. R., Maarten Mennes, Daan van Rooij, Alberto Llera, Jan K. Buitelaar, and Christian F. Beckmann. 2015. “ICA-AROMA: A Robust ICA-Based Strategy for Removing Motion Artifacts from fMRI Data.” NeuroImage 112 (Supplement C): 267–77. https://doi.org/10.1016/j.neuroimage.2015.02.064.
+
+Reuter, Martin, Herminia Diana Rosas, and Bruce Fischl. 2010. “Highly Accurate Inverse Consistent Registration: A Robust Approach.” NeuroImage 53 (4): 1181–96. https://doi.org/10.1016/j.neuroimage.2010.07.020.
+
+Satterthwaite, Theodore D., Mark A. Elliott, Raphael T. Gerraty, Kosha Ruparel, James Loughead, Monica E. Calkins, Simon B. Eickhoff, et al. 2013. “An improved framework for confound regression and filtering for control of motion artifact in the preprocessing of resting-state functional connectivity data.” NeuroImage 64 (1): 240–56. https://doi.org/10.1016/j.neuroimage.2012.08.052.
+
+Tustison, N. J., B. B. Avants, P. A. Cook, Y. Zheng, A. Egan, P. A. Yushkevich, and J. C. Gee. 2010. “N4itk: Improved N3 Bias Correction.” IEEE Transactions on Medical Imaging 29 (6): 1310–20. https://doi.org/10.1109/TMI.2010.2046908.
+
+Zhang, Y., M. Brady, and S. Smith. 2001. “Segmentation of Brain MR Images Through a Hidden Markov Random Field Model and the Expectation-Maximization Algorithm.” IEEE Transactions on Medical Imaging 20 (1): 45–57. https://doi.org/10.1109/42.906424.
+
+# FSL analysis 
+
+## Regions of interest
+
+We created two masks containing regions of interest, one only containing the bilateral fusiform gyrus, the other additionally containing the following regions: ACC_pre_L, ACC_pre_R, ACC_sub_L, ACC_sub_R, ACC_sup_L, ACC_sup_R, Amygdala_L, Amygdala_R, Insula_L, Insula_R, Precuneus_L, Precuneus_R, SupraMarginal_R and Temporal_Rup_R. All regions were extracted from the AAL3 atlas. 
+
+The ROI mask only containing the fusiform gyri was used to assess the colour prediction errors in the comparison group, as well as group differences in neural correlates of colour prediction errors. The other ROI mask was used to evaluate all other hypotheses, including emotion prediction error and prediction strength in the comparison group as well as the pooled sample and group differences in neural correlates of emotion prediction errors. 
+
+## Combine FSL output
+
+```{r table, message=FALSE}
+
+# get one type of input from each contrast
+ls.files = dir(pattern = '.*MNI-AAL.csv', path = "./results_sig")
+
+for (file in ls.files) {
+  contrast = gsub("_MNI-AAL.csv", "", file)
+  type     = substr(contrast, nchar(contrast)-5, nchar(contrast)-5)
+  maxima   = read_csv(file.path("results_sig", file), show_col_types = F)
+  if (nrow(maxima) == 0) next
+  summary  = read_delim(file.path("results_sig", 
+                                  paste0(contrast, '_cluster-summary.txt')), 
+                        show_col_types = F)
+  output   = read_delim(file.path("results_sig", 
+                                  paste0(contrast, '_randomise_output_all.txt')), 
+                        show_col_types = F)
+  
+  relinfo  = 
+    merge(
+      output %>% select(`Cluster Index`, Voxels), 
+      maxima %>% select(`Cluster Index`, `Value`, MNIx, MNIy, MNIz, AALname)
+      ) %>%
+    mutate(
+      H = if_else(MNIx >= 0, "R", "L")
+    ) %>%
+    rename(
+      `Cluster size` = "Voxels", 
+      "Region" = "AALname",
+      "x" = "MNIx",
+      "y" = "MNIy",
+      "z" = "MNIz"
+    ) %>%
+    arrange(desc(`Cluster Index`), desc(Value)) %>%
+    relocate(`Cluster Index`, Region, `Cluster size`, H)
+  colnames(relinfo)[colnames(relinfo) == "Value"] = paste0(type, "-value")
+  
+  write_csv(relinfo, file = file.path("results_sig", paste0(contrast, '.csv')))
+  
+}
+
+```
+
+## Hypothesis-guided ROI analysis
+
+```{r hypo}
+
+# COMP: same areas as Stefanics et al. (2019), Neuroimage
+
+read_csv(file.path("results_sig", 'hgf_ctr_eps_c_ROI_fstat1.csv'), show_col_types = F) %>%
+  kable(., caption = 'COMP: colour prediction error')
+
+read_csv(file.path("results_sig", 'hgf_ctr_mu_e_ROI_fstat1.csv'), show_col_types = F) %>%
+  kable(., caption = 'COMP: emotion prediction strength')
+
+# pooled: same areas as Stefanics et al. (2019), Neuroimage
+
+read_csv(file.path("results_sig", 'hgf_all_eps_c_ROI_fstat1.csv'), show_col_types = F) %>%
+  kable(., caption = 'Pooled: colour prediction error')
+
+read_csv(file.path("results_sig", 'hgf_all_mu_c_ROI_fstat1.csv'), show_col_types = F) %>%
+  kable(., caption = 'Pooled: colour prediction strength')
+
+read_csv(file.path("results_sig", 'hgf_all_mu_e_ROI_fstat1.csv'), show_col_types = F) %>%
+  kable(., caption = 'Pooled: emotion prediction strength')
+
+# Neural adaptation
+
+read_csv(file.path("results_sig", 'smp_adapt_neg_ROI_tstat1.csv'), show_col_types = F) %>%
+  kable(., caption = 'ALL: repetition suppression')
+
+```
+
+## Plotting
+
+Plot the participants' activation in clusters larger than 100 voxels to visualise the effects. 
+
+```{r plot}
+
+# custom colour palette
+custom.col = c("#009E73", "#D55E00", "#0058b2", "#CC79A7")
+
+# load in the extracted activation
+df.act = read_csv(file.path("fMRI_data", "grp_use-sorted.csv"), 
+                  show_col_types = F) %>%
+  mutate(
+    diagnosis = fct_recode(diagnosis, 
+                           "COMP" = "CTR")
+  ) %>%
+  select(diagnosis) %>%
+  mutate(
+    # load zstats for eps-c
+    `colour PE-rFG`  = scan(file.path("fMRI_data", "eps_c_C7_meants.txt")),
+    `colour PE-rSTS` = scan(file.path("fMRI_data", "eps_c_C6_meants.txt")),
+    `colour PE-rINS` = scan(file.path("fMRI_data", "eps_c_C5_meants.txt")),
+    `colour PE-rACC` = scan(file.path("fMRI_data", "eps_c_C4_meants.txt")),
+    # load zstats for mu-z
+    `colour PS-rINS`  = scan(file.path("fMRI_data", "mu_c_C3_meants.txt")),
+    `colour PS-lINS`  = scan(file.path("fMRI_data", "mu_c_C4_meants.txt")),
+    `colour PS-rACC`  = scan(file.path("fMRI_data", "mu_c_C5_meants.txt")),
+    `colour PS-rSMG`  = scan(file.path("fMRI_data", "mu_c_C6_meants.txt")),
+    `colour PS-PRC`   = scan(file.path("fMRI_data", "mu_c_C7_meants.txt")),
+    # load zstats for mu-e
+    `emotion PS-rPRC`  = scan(file.path("fMRI_data", "mu_e_C4_meants.txt")),
+    `emotion PS-rFG`   = scan(file.path("fMRI_data", "mu_e_C3_meants.txt")),
+    `emotion PS-lFG`   = scan(file.path("fMRI_data", "mu_e_C2_meants.txt")),
+    # load zstat for neural adaptation
+    `RS-rFG`  = scan(file.path("fMRI_data", "adapt_meants.txt"))
+  ) %>%
+  pivot_longer(cols = -diagnosis, names_to = c("parameter", "region"), 
+               names_sep = "-", values_to = "activation")
+
+# plot 
+df.act %>%
+  ggplot(aes(region, activation, fill = diagnosis, colour = diagnosis)) + #
+  geom_rain(rain.side = 'r',
+boxplot.args = list(color = "black", outlier.shape = NA, show.legend = FALSE, alpha = .8),
+violin.args = list(color = "black", outlier.shape = NA, alpha = .6),
+boxplot.args.pos = list(
+  position = ggpp::position_dodgenudge(x = 0, width = 0.3), width = 0.3
+),
+point.args = list(show_guide = FALSE, alpha = .5, size = 0.5),
+violin.args.pos = list(
+  width = 0.6, position = position_nudge(x = 0.16)),
+point.args.pos = list(position = ggpp::position_dodgenudge(x = -0.25, width = 0.1))) +
+  scale_fill_manual(values = custom.col) +
+  scale_color_manual(values = custom.col) +
+  labs(title = "Neural correlates", x = "", y = "z-stat") + 
+  facet_grid(. ~ parameter, scales = "free", space = "free") +
+  geom_hline(yintercept = 0) +
+  theme_bw() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5), 
+        legend.direction = "horizontal", 
+        text = element_text(size = 12, family = "mono", face = "bold")
+        )
+
+ggsave("neural_zstat.pdf",
+       units  = "mm", width  = 270, height = 100, dpi    = 300)
+
+```
+
+```{r bf_groups, warning=F, message=F}
+
+# check normal distribution
+df.act %>% group_by(diagnosis, parameter, region) %>%
+  shapiro_test(activation) %>%
+  arrange(region, parameter)
+
+# not: colour PE - rACC, rINS, but most are
+df.act = df.act %>%
+  mutate(
+    param_region = paste0(parameter, '_', region)
+  )
+
+# compute bayes factor using anovas
+bf.log = c()
+comb   = c()
+for (c in unique(df.act$param_region)) {
+  df.small = df.act %>% filter(param_region == c)
+  aov = anovaBF(activation ~ diagnosis, data = df.small)
+  comb   = c(comb, c)
+  bf.log = c(bf.log, aov@bayesFactor$bf)
+}
+
+# apply multiple comparison correction after Westfall (1997)
+# as described by de Jong (2019)
+m = 6 # output of ceil(max(roots([1, -1, -26]))) in MATLAB
+c = 0.5^(2/m);
+podds = exp(bf.log) * ((1-c)/c)
+bf.cor = c()
+for (i in 1:length(bf.log)) {
+  ph1    = podds[i]/(1 + podds[i])
+  bf.cor = c(bf.cor, log(ph1/(1 - ph1)))
+}
+
+# put everything into a dataframe
+df.aov = data.frame(comb, bf.log, bf.cor) %>%
+  separate(comb, into = c("parameter", "region"), sep = "_") %>%
+  mutate(
+    interpretation = interpret_bf(bf.cor, log = T)
+  )
+
+kable(df.aov %>% arrange(bf.cor))
+
+
+```

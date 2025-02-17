@@ -1,0 +1,1343 @@
+---
+title: "S1: Group comparisons and behavioural analysis with brms"
+author: "I. S. Plank"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r settings, include=FALSE}
+
+knitr::opts_chunk$set(echo = T, warning = F, message = F, fig.align = 'center', fig.width = 9)
+ls.packages = c("knitr",# kable
+    "ggplot2",          # plots
+    "brms",             # Bayesian lmms
+    "designr",          # simLMM
+    "bridgesampling",   # bridge_sampler
+    "tidyverse",        # tibble stuff
+    "ggpubr",           # ggarrange
+    "ggrain",           # geom_rain
+    "bayesplot",        # plots for posterior predictive checks
+    "SBC",              # plots for checking computational faithfulness
+    "rstatix",          # anova
+    "BayesFactor", 
+    "bayestestR"        # equivalence_test
+)
+
+lapply(ls.packages, library, character.only=TRUE)
+
+# set cores
+options(mc.cores = parallel::detectCores())
+
+# graph settings 
+c_light = "#a9afb2"; c_light_highlight = "#8ea5b2"; c_mid = "#6b98b2" 
+c_mid_highlight = "#3585b2"; c_dark = "#0072b2"; c_dark_highlight = "#0058b2" 
+c_green = "#009E73"
+sz = 1
+
+# custom colour palette
+custom.col = c(c_dark_highlight, c_green, "#CC79A7", "#D55E00")
+
+# settings for the SBC package
+use_cmdstanr = getOption("SBC.vignettes_cmdstanr", TRUE) # Set to false to use rst
+options(brms.backend = "cmdstanr")
+cache_dir = "./_brms_SBC_cache"
+if(!dir.exists(cache_dir)) {
+  dir.create(cache_dir)
+}
+
+# use parallel processing
+library(future)
+plan(multisession)
+
+```
+
+<style type="text/css">
+.main-container {
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+# Introduction
+
+[!ADD info on study and task]
+
+## Some general settings
+
+```{r set}
+
+# number of simulations
+nsim = 250
+
+# set number of iterations and warmup for models
+iter = 4500
+warm = 1500
+
+```
+
+## Package versions
+
+```{r lib_versions, echo=F}
+
+print(R.Version()$version.string)
+
+for (package in ls.packages) {
+  print(sprintf("%s version %s", package, packageVersion(package)))
+}
+
+```
+
+## General info
+
+We planned to determine the group-level effect subjects following Barr (2013). For each model, experiment specific priors were set based on previous literature or the task (see comments in the code).
+
+We perform prior predictive checks as proposed in Schad, Betancourt and Vasishth (2020) using the SBC package. To do so, we create `r print(nsim)` simulated datasets where parameters are simulated from the priors. These parameters are used to create one fake dataset. Both the true underlying parameters and the simulated values are saved.
+
+Then, we create graphs showing the prior predictive distribution of the simulated discrimination threshold to check whether our priors fit our general expectations about the data. Next, we perform checks of computational faithfulness and model sensitivity as proposed by Schad, Betancourt and Vasishth (2020) and implemented in the SBC package. We create models for each of the simulated datasets. Last, we calculate performance metrics for each of these models, focusing on the population-level parameters.
+
+## Preparation and group comparisons 
+
+First, we load the data and combine it with demographic information including the diagnostic status of the subjects. Then, all predictors are set to sum contrasts. We have a look at the demographics describing our three diagnostic groups: autistic adults and adults with ADHD as well as a comparison group of adults without any psychiatric diagnoses. 
+
+Since this is sensitive data, we load the anonymised version of the processed data at this point but also leave the code we used to create it. 
+
+```{r prep_data}
+
+# check if the data file exists, if yes load it:
+if (!file.exists("VMM_data.RData")) {
+  
+  # set file paths
+  fl.path = '/home/emba/Documents/EMBA'
+  dt.path = paste(fl.path, 'BVET', sep = "/")
+  
+  # load the preprocessed data
+  load(file.path(dt.path, "VMM_preprocessed.RData"))
+  
+  # load list of participants which are included in the fMRI analysis
+  df.inc = read_delim(file.path(fl.path, "VMM_analysis/01_FSL/all_use-new")) %>%
+    filter(diagnosis != "pilot") %>% select(subID)
+  
+  # load list of participants which are included in fMRI ET analysis
+  df.ETinc = read_csv(file = file.path(dt.path, "VMM_ET_inc.csv"), show_col_types = F)
+  
+  # load demographic information
+  df.sub = read_csv(file.path("/home/emba/Documents/EMBA/CentraXX", "EMBA_centraXX.csv"), 
+                    show_col_types = F) %>%
+    mutate(
+      diagnosis = recode(diagnosis, "CTR" = "COMP")
+    ) %>% filter(subID %in% df.inc$subID) %>% 
+    # add whether or not psych medication (binary)
+    mutate(
+      psych.meds_binary = if_else(!is.na(dep.meds) | 
+                                    !is.na(psych.meds) | 
+                                    !is.na(adhd.meds), T, F)
+      )
+  
+  # summarise medication
+  df.meds = df.sub %>% 
+    group_by(diagnosis, adhd.meds, psych.meds_binary) %>% 
+    count()
+  
+  # merge together and anonymise
+  df.disc = merge(df.disc, df.sub %>% select(subID, diagnosis), all.y = T) %>%
+    mutate(
+      subID = as.factor(as.numeric(as.factor(subID)))
+    )
+  df.tsk  = merge(df.tsk,  df.sub %>% select(subID, diagnosis), all.y = T) %>%
+    mutate(
+      subID = as.factor(as.numeric(as.factor(subID)))
+    )
+  
+  # set the center for the fixation cross
+  x.centre = 512 # 1024 
+  y.centre = 332 # 768 but moved up 52 pixels
+  r = 100 # radius of the AOI in the centre
+  
+  # classify fixates (centre or not), aggregate and anonymise the data
+  df.fix = readRDS(file.path(dt.path, "VMM_fixations.rds"))
+  df.fix.agg = df.fix %>%
+    mutate(
+      AOI.fix = if_else(dist.centre <= r, "centre", "periphery")
+    ) %>%
+    group_by(subID, AOI.fix) %>%
+    summarise(
+      fix.dur = sum(duration)
+    ) %>%
+    pivot_wider(names_from = AOI.fix, values_from = fix.dur, names_prefix = "fix.") %>%
+    mutate(
+      fix.total = fix.centre + fix.periphery,
+      fix.prop  = fix.centre / fix.total
+    ) %>%
+    merge(., df.ETinc %>% select(subID, diagnosis) %>% distinct()) %>%
+    ungroup() %>%
+    mutate(
+      rfix.total = rank(fix.total),
+      rfix.prop  = rank(fix.prop),
+      diagnosis  = as.factor(diagnosis),
+      subID = as.factor(as.numeric(as.factor(subID)))
+    )
+  
+  # get gender frequencies and compare them across groups
+  tb.gen = xtabs(~ gender + diagnosis, data = df.sub)
+  ct.full = contingencyTableBF(tb.gen, 
+                               sampleType = "indepMulti", 
+                               fixedMargin = "cols")
+  # since only DAN in the ADHD group, we try again after excluding them
+  ct.mf = contingencyTableBF(tb.gen[2:3,], 
+                             sampleType = "indepMulti", 
+                             fixedMargin = "cols")
+  
+  # keep the gender descriptions of the DAN group
+  gen.desc = unique(df.sub[df.sub$gender == "dan",]$gender_desc)
+  
+  # get education frequencies and compare them across groups
+  tb.edu = xtabs(~ edu + diagnosis, data = df.sub)
+  ct.edu = contingencyTableBF(tb.edu, 
+                               sampleType = "indepMulti", 
+                               fixedMargin = "cols")
+  
+  # check which outcomes of interest are normally distributed
+  df.sht = df.sub %>% 
+    group_by(diagnosis) %>%
+    shapiro_test(age, iq, BDI_total, ASRS_total, 
+                 RAADS_total, TAS_total) %>%
+    mutate(
+      sig = if_else(p < 0.05, "*", "")
+    ) %>% arrange(variable)
+  
+  # most of the measures are not normally distributed; 
+  # therefore, we compute ranks for these outcomes
+  df.sub = df.sub %>% 
+    mutate(
+      rage   = rank(age),
+      rASRS  = rank(ASRS_total),
+      rBDI   = rank(BDI_total),
+      rIQ    = rank(iq),
+      rRAADS = rank(RAADS_total),
+      rTAS   = if_else(is.na(TAS_total), NA, rank(TAS_total)),  # one person is missing the TAS!
+      diagnosis = as.factor(diagnosis)
+    )
+  
+  # now we can compute our ANOVAs
+  aov.age   = anovaBF(rage   ~ diagnosis, data = df.sub)
+  aov.iq    = anovaBF(rIQ    ~ diagnosis, data = df.sub)
+  aov.BDI   = anovaBF(rBDI   ~ diagnosis, data = df.sub)
+  aov.ASRS  = anovaBF(rASRS  ~ diagnosis, data = df.sub)
+  aov.RAADS = anovaBF(rRAADS ~ diagnosis, data = df.sub)
+  aov.TAS   = anovaBF(rTAS   ~ diagnosis, data = df.sub %>% filter(!is.na(rTAS)))
+  
+  # ...and put everything in a new dataframe for printing
+  measurement  = "Age"
+  ADHD     = sprintf("%.2f (±%.2f)", 
+                     mean(df.sub[df.sub$diagnosis == "ADHD",]$age), 
+                     sd(df.sub[df.sub$diagnosis == "ADHD",]$age)/
+                       sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",])))
+  ASD      = sprintf("%.2f (±%.2f)", 
+                     mean(df.sub[df.sub$diagnosis == "ASD",]$age), 
+                     sd(df.sub[df.sub$diagnosis == "ASD",]$age)/
+                       sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",])))
+  COMP      = sprintf("%.2f (±%.2f)", 
+                      mean(df.sub[df.sub$diagnosis == "COMP",]$age), 
+                      sd(df.sub[df.sub$diagnosis == "COMP",]$age)/
+                        sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",])))
+  logBF10 = sprintf("%.3f", aov.age@bayesFactor[["bf"]])
+  df.table = data.frame(measurement, ADHD, ASD, COMP, logBF10)
+  df.table = rbind(df.table,
+       c(
+         "ASRS",
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "ADHD",]$ASRS_total),
+                 sd(df.sub[df.sub$diagnosis == "ADHD",]$ASRS_total)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "ASD",]$ASRS_total), 
+                 sd(df.sub[df.sub$diagnosis == "ASD",]$ASRS_total)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",]))),
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "COMP",]$ASRS_total),
+                 sd(df.sub[df.sub$diagnosis == "COMP",]$ASRS_total)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",]))),
+         sprintf("%.3f", aov.ASRS@bayesFactor[["bf"]])
+       ),
+       c(
+         "BDI",
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "ADHD",]$BDI_total), 
+                 sd(df.sub[df.sub$diagnosis == "ADHD",]$BDI_total)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "ASD",]$BDI_total), 
+                 sd(df.sub[df.sub$diagnosis == "ASD",]$BDI_total)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",]))),
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "COMP",]$BDI_total), 
+                 sd(df.sub[df.sub$diagnosis == "COMP",]$BDI_total)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",]))),
+         sprintf("%.3f", aov.BDI@bayesFactor[["bf"]])
+       ),
+       c(
+         "Education (1-5)",
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "ADHD",]$edu), 
+                 sd(df.sub[df.sub$diagnosis == "ADHD",]$edu)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "ASD",]$edu), 
+                 sd(df.sub[df.sub$diagnosis == "ASD",]$edu)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",]))),
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "COMP",]$edu), 
+                 sd(df.sub[df.sub$diagnosis == "COMP",]$edu)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",]))),
+         sprintf("%.3f", ct.edu@bayesFactor[["bf"]])
+       ),
+       c(
+         "Gender (diverse/agender - female - male)",
+         sprintf("%d - %d - %d", 
+                 nrow(df.sub[df.sub$diagnosis == "ADHD" & df.sub$gender == "dan",]), 
+                 nrow(df.sub[df.sub$diagnosis == "ADHD" & df.sub$gender == "fem",]), 
+                 nrow(df.sub[df.sub$diagnosis == "ADHD" & df.sub$gender == "mal",])),
+         sprintf("%d - %d - %d", 
+                 nrow(df.sub[df.sub$diagnosis == "ASD" & df.sub$gender == "dan",]), 
+                 nrow(df.sub[df.sub$diagnosis == "ASD" & df.sub$gender == "fem",]), 
+                 nrow(df.sub[df.sub$diagnosis == "ASD" & df.sub$gender == "mal",])),
+         sprintf("%d - %d - %d", 
+                 nrow(df.sub[df.sub$diagnosis == "COMP" & df.sub$gender == "dan",]), 
+                 nrow(df.sub[df.sub$diagnosis == "COMP" & df.sub$gender == "fem",]), 
+                 nrow(df.sub[df.sub$diagnosis == "COMP" & df.sub$gender == "mal",])),
+         sprintf("%.3f", ct.full@bayesFactor[["bf"]])
+       ),
+       c(
+         "IQ",
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "ADHD",]$iq), 
+                 sd(df.sub[df.sub$diagnosis == "ADHD",]$iq)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "ASD",]$iq), 
+                 sd(df.sub[df.sub$diagnosis == "ASD",]$iq)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",]))),
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "COMP",]$iq), 
+                 sd(df.sub[df.sub$diagnosis == "COMP",]$iq)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",]))),
+         sprintf("%.3f", aov.iq@bayesFactor[["bf"]])
+       ),
+       c(
+         "RAADS",
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "ADHD",]$RAADS_total), 
+                 sd(df.sub[df.sub$diagnosis == "ADHD",]$RAADS_total)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "ASD",]$RAADS_total), 
+                 sd(df.sub[df.sub$diagnosis == "ASD",]$RAADS_total)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",]))),
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "COMP",]$RAADS_total), 
+                 sd(df.sub[df.sub$diagnosis == "COMP",]$RAADS_total)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",]))),
+         sprintf("%.3f", aov.RAADS@bayesFactor[["bf"]])
+       ),
+       c(
+         "TAS",
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "ADHD",]$TAS_total), 
+                 sd(df.sub[df.sub$diagnosis == "ADHD",]$TAS_total)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "ASD",]$TAS_total, na.rm = T), 
+                 sd(df.sub[df.sub$diagnosis == "ASD",]$TAS_total, na.rm = T)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD" & !is.na(df.sub$TAS_total),]))),
+         sprintf("%.2f (±%.2f)", 
+                 mean(df.sub[df.sub$diagnosis == "COMP",]$TAS_total), 
+                 sd(df.sub[df.sub$diagnosis == "COMP",]$TAS_total)/
+                   sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",]))),
+         sprintf("%.3f", aov.TAS@bayesFactor[["bf"]])
+       )
+  ) %>% arrange(measurement)
+  
+  # save it all
+  save(df.disc, df.tsk, df.fix.agg, 
+       df.table, df.sht, ct.full, ct.mf, gen.desc, df.meds, tb.edu, ct.edu,
+       file = "VMM_data.RData")
+  
+} else {
+  
+  load("VMM_data.RData")
+  
+}
+
+# print the group of included participants
+kable(df.disc %>% select(subID, diagnosis) %>% distinct() %>% group_by(diagnosis) %>% count())
+
+# print the group of included participants with eye tracking
+kable(df.fix.agg %>% select(subID, diagnosis) %>% distinct() %>% group_by(diagnosis) %>% count())
+
+# print the outcome of the shapiro tests
+kable(df.sht)
+rm(df.sht)
+
+# print the outcome of the contingency table concerning gender
+ct.full@bayesFactor
+ct.mf@bayesFactor
+
+# print the outcome of the contingency table concerning education
+ct.edu@bayesFactor
+
+# only keep the relevant rtcs
+df.rtc = df.tsk %>% 
+  filter(sdt == "hit" & !is.na(rtc)) %>% 
+  ungroup() %>%
+  mutate_if(is.character, as.factor)
+df.disc = df.disc %>% 
+  ungroup() %>%
+  # subtract the discrimination rate from the "perfect" number to be able to 
+  # use a poisson in the model
+  mutate(
+    negdisc = 240 - disc
+  ) %>%
+  mutate_if(is.character, as.factor)
+
+# set and print the contrasts
+contrasts(df.rtc$diagnosis)  = contr.sum(3)
+contrasts(df.rtc$diagnosis)
+contrasts(df.disc$diagnosis) = contr.sum(3)
+contrasts(df.disc$diagnosis)
+contrasts(df.fix.agg$diagnosis) = contr.sum(3)
+contrasts(df.fix.agg$diagnosis)
+
+# print final group comparisons for the paper
+kable(df.table)
+
+# print medication for the paper
+kable(df.meds)
+
+```
+
+# Analysis of reaction times (hits-only)
+
+## Full model
+
+### Group-level: subject and trials, trials with diagnosis slope
+
+```{r model_full}
+
+code = "VMM_rtc_full"
+
+# full model formula
+f.rtc = brms::bf(rtc ~ diagnosis + (1 | subID) + (diagnosis | trl) )
+
+# set informed priors based on previous results
+priors = c(
+  # general priors based on SBV
+  prior(normal(6,     0.3),  class = Intercept),
+  prior(normal(0,     0.5),  class = sigma),
+  prior(normal(0.1,   0.1),  class = sd),
+  prior(lkj(2),              class = cor),
+  # ADHD subjects being slower based on Pievsky & McGrath (2018)
+  prior(normal(0.025, 0.04), class = b, coef = diagnosis1),
+  # ASD subjects being slower based on Morrison et al. (2018)
+  prior(normal(0.025, 0.04), class = b, coef = diagnosis2),
+  # shift
+  prior(normal(100,   50),   class = ndt)
+)
+
+```
+
+```{r sbc_checks}
+
+# check if the SBC already exists
+if (file.exists(file.path(cache_dir, sprintf("df_res_%s.rds", code)))) {
+  # load in the results of the SBC
+  df.results = readRDS(file.path(cache_dir, sprintf("df_res_%s.rds", code)))
+  df.backend = readRDS(file.path(cache_dir, sprintf("df_div_%s.rds", code)))
+  dat        = readRDS(file.path(cache_dir, sprintf("dat_%s.rds", code)))
+} else {
+  # set the seed
+  set.seed(2468)
+  # perform the SBC
+  gen = SBC_generator_brms(f.rtc, data = df.rtc, prior = priors,
+                           family = shifted_lognormal,
+                           thin = 50, warmup = 20000, refresh = 2000)
+  bck = SBC_backend_brms_from_generator(gen, chains = 4, thin = 1,
+                                      init = 0.1, warmup = warm, iter = iter)
+  if (!file.exists(file.path(cache_dir, sprintf("dat_%s.rds", code)))) {
+    dat = generate_datasets(gen, nsim)
+    saveRDS(dat, file.path(cache_dir, sprintf("dat_%s.rds", code)))
+  } else {
+    dat = readRDS(file.path(cache_dir, sprintf("dat_%s.rds", code)))
+  }
+  # set the seed again
+  set.seed(2468)
+  res = compute_SBC(dat,
+        bck,
+        cache_mode     = "results",
+        cache_location = file.path(cache_dir, sprintf("res_%s", code)))
+  df.results = res$stats
+  df.backend = res$backend_diagnostics
+  saveRDS(df.results, file = file.path(cache_dir, paste0("df_res_", code, ".rds")))
+  saveRDS(df.backend, file = file.path(cache_dir, paste0("df_div_", code, ".rds")))
+}
+
+```
+
+We start by investigating the rhats and the number of divergent samples. This shows that `r nrow(df.results %>% group_by(sim_id) %>% summarise(rhat = max(rhat, na.rm = T)) %>% filter(rhat >= 1.05))` of `r nsim` simulations had at least one parameter that had an rhat of at least 1.05, and `r nrow(df.backend %>% filter(n_divergent > 0))` models had divergent samples (mean number of samples of the simulations with divergent samples: `r as.numeric(df.backend %>% filter(n_divergent > 0) %>% summarise(n_divergent = round(mean(n_divergent), digits = 2)))`). This suggests serious problems with this model. We try to drop the group-level slope of diagnostics for the trials and run it again. 
+
+### Group-level: subject and trials, no slopes
+
+```{r model_full2}
+
+code = "VMM_rtc_full_int"
+
+# full model formula
+f.rtc = brms::bf(rtc ~ diagnosis + (1 | subID) + (1 | trl) )
+
+# set informed priors based on previous results
+priors = c(
+  # general priors based on SBV
+  prior(normal(6,     0.3),  class = Intercept),
+  prior(normal(0,     0.5),  class = sigma),
+  prior(normal(0.1,   0.1),  class = sd),
+  # ADHD subjects being slower based on Pievsky & McGrath (2018)
+  prior(normal(0.025, 0.04), class = b, coef = diagnosis1),
+  # ASD subjects being slower based on Morrison et al. (2018)
+  prior(normal(0.025, 0.04), class = b, coef = diagnosis2),
+  # shift
+  prior(normal(100,   50),   class = ndt)
+)
+
+```
+
+```{r sbc_checks2}
+
+# check if the SBC already exists
+if (file.exists(file.path(cache_dir, sprintf("df_res_%s.rds", code)))) {
+  # load in the results of the SBC
+  df.results = readRDS(file.path(cache_dir, sprintf("df_res_%s.rds", code)))
+  df.backend = readRDS(file.path(cache_dir, sprintf("df_div_%s.rds", code)))
+  dat        = readRDS(file.path(cache_dir, sprintf("dat_%s.rds", code)))
+} else {
+  # set the seed
+  set.seed(2468)
+  # perform the SBC
+  gen = SBC_generator_brms(f.rtc, data = df.rtc, prior = priors,
+                           family = shifted_lognormal,
+                           thin = 50, warmup = 20000, refresh = 2000)
+  bck = SBC_backend_brms_from_generator(gen, chains = 4, thin = 1,
+                                      init = 0.1, warmup = warm, iter = iter)
+  if (!file.exists(file.path(cache_dir, sprintf("dat_%s.rds", code)))) {
+    dat = generate_datasets(gen, nsim)
+    saveRDS(dat, file.path(cache_dir, sprintf("dat_%s.rds", code)))
+  } else {
+    dat = readRDS(file.path(cache_dir, sprintf("dat_%s.rds", code)))
+  }
+  # set the seed again
+  set.seed(2468)
+  res = compute_SBC(dat,
+        bck,
+        cache_mode     = "results",
+        cache_location = file.path(cache_dir, sprintf("res_%s", code)))
+  df.results = res$stats
+  df.backend = res$backend_diagnostics
+  saveRDS(df.results, file = file.path(cache_dir, paste0("df_res_", code, ".rds")))
+  saveRDS(df.backend, file = file.path(cache_dir, paste0("df_div_", code, ".rds")))
+}
+
+```
+
+Again, we start by investigating the rhats and the number of divergent samples. This shows that `r nrow(df.results %>% group_by(sim_id) %>% summarise(rhat = max(rhat, na.rm = T)) %>% filter(rhat >= 1.05))` of `r nsim` simulations had at least one parameter that had an rhat of at least 1.05, and `r nrow(df.backend %>% filter(n_divergent > 0))` models had divergent samples (mean number of samples of the simulations with divergent samples: `r as.numeric(df.backend %>% filter(n_divergent > 0) %>% summarise(n_divergent = round(mean(n_divergent), digits = 2)))`). This suggests that there are still some serious problems with this model. Therefore, we change course and try to aggregate the trials for each participant to see if we can find a better model for our simulated data before we switch to using our real data. 
+
+## Aggregated model
+
+### SBC
+
+```{r sbc_checks_agg}
+
+code = "VMM_rtc_agg_simple"
+
+# aggregate the data and set the contrast
+df.rtc.agg = df.rtc %>%
+  group_by(subID, diagnosis) %>%
+  summarise(
+    rtc = median(rtc)
+  )
+
+# model formula
+f.rtc = brms::bf(rtc ~ diagnosis )
+
+# set weakly informed priors 
+priors = c(
+  # general priors based on SBV
+  prior(normal(5.6,   0.3),  class = Intercept), # median gets rid of outliers > lower
+  prior(normal(0,     0.5),  class = sigma),
+  # ADHD subjects being slower based on Pievsky & McGrath (2018)
+  prior(normal(0.025, 0.10), class = b, coef = diagnosis1),
+  # ASD subjects being slower based on Morrison et al. (2018)
+  prior(normal(0.025, 0.10), class = b, coef = diagnosis2),
+  # shift > had min. 100 for reactions build in, but median is going to be higher
+  prior(normal(200,   100),  class = ndt)
+)
+
+# Increased the standard deviation of b after plotting contraction.
+
+# check if the SBC already exists
+if (file.exists(file.path(cache_dir, sprintf("df_res_%s.rds", code)))) {
+  # load in the results of the SBC
+  df.results = readRDS(file.path(cache_dir, sprintf("df_res_%s.rds", code)))
+  df.backend = readRDS(file.path(cache_dir, sprintf("df_div_%s.rds", code)))
+  dat        = readRDS(file.path(cache_dir, sprintf("dat_%s.rds", code)))
+} else {
+  # set the seed
+  set.seed(2468)
+  # perform the SBC
+  gen = SBC_generator_brms(f.rtc, data = df.rtc.agg, prior = priors,
+                           family = shifted_lognormal,
+                           thin = 50, warmup = 20000, refresh = 2000)
+  bck = SBC_backend_brms_from_generator(gen, chains = 4, thin = 1,
+                                      init = 0.1, warmup = warm, iter = iter)
+  dat = generate_datasets(gen, nsim)
+  saveRDS(dat, file.path(cache_dir, sprintf("dat_%s.rds", code)))
+  res = compute_SBC(dat, 
+        bck,
+        cache_mode     = "results", 
+        cache_location = file.path(cache_dir, sprintf("res_%s", code)))
+  df.results = res$stats
+  df.backend = res$backend_diagnostics
+  saveRDS(df.results, file = file.path(cache_dir, paste0("df_res_", code, ".rds")))
+  saveRDS(df.backend, file = file.path(cache_dir, paste0("df_div_", code, ".rds")))
+  
+}
+
+```
+
+
+Again, we start by investigating the rhats and the number of divergent samples. This shows that `r nrow(df.results %>% group_by(sim_id) %>% summarise(rhat = max(rhat, na.rm = T)) %>% filter(rhat >= 1.05))` of `r nsim` simulations had at least one parameter that had an rhat of at least 1.05, and `r nrow(df.backend %>% filter(n_divergent > 0))` models had divergent samples. This suggests that this model performs well and we can continue with our checks by plotting the simulated values to perform prior predictive checks. 
+
+```{r sbc_checks2_agg, fig.height=8}
+
+# create a matrix out of generated data
+dvname = gsub(" ", "", gsub("[\\|~].*", "", f.rtc)[1])
+dvfakemat = matrix(NA, nrow(dat[['generated']][[1]]), length(dat[['generated']])) 
+for (i in 1:length(dat[['generated']])) {
+  dvfakemat[,i] = dat[['generated']][[i]][[dvname]]
+}
+truePars = dat$variables
+
+# set large values to a max
+dvfakemat[dvfakemat > 2000] = 2000
+
+# compute one histogram per simulated data-set 
+binwidth = 20 
+breaks = seq(0, max(dvfakemat, na.rm=T) + binwidth, binwidth) 
+histmat = matrix(NA, ncol = length(dat), nrow = length(breaks)-1) 
+for (i in 1:nrow(truePars)) {
+  histmat[,i] = hist(dvfakemat[,i], breaks = breaks, plot = F)$counts 
+}
+# for each bin, compute quantiles across histograms 
+probs = seq(0.1, 0.9, 0.1) 
+quantmat= as.data.frame(matrix(NA, nrow=dim(histmat)[1], ncol = length(probs)))
+names(quantmat) = paste0("p", probs)
+for (i in 1:dim(histmat)[1]) {
+  quantmat[i,] = quantile(histmat[i,], p = probs)
+}
+quantmat$x = breaks[2:length(breaks)] - binwidth/2 # add bin mean 
+p1 = ggplot(data = quantmat, aes(x = x)) + 
+  geom_ribbon(aes(ymax = p0.9, ymin = p0.1), fill = c_light) + 
+  geom_ribbon(aes(ymax = p0.8, ymin = p0.2), fill = c_light_highlight) + 
+  geom_ribbon(aes(ymax = p0.7, ymin = p0.3), fill = c_mid) + 
+  geom_ribbon(aes(ymax = p0.6, ymin = p0.4), fill = c_mid_highlight) + 
+  geom_line(aes(y = p0.5), colour = c_dark, linewidth = 1) + 
+  labs(title = "Distribution of simulated discriminations", y = "", x = "") +
+  theme_bw()
+
+tmpM = apply(dvfakemat, 2, mean) # mean 
+tmpSD = apply(dvfakemat, 2, sd) 
+p2 = ggplot() + 
+  stat_bin(aes(x = tmpM), fill = c_dark)  + 
+  labs(x = "Mean RTs (ms)", title = "Means of simulated RTs") +
+  theme_bw()
+p3 = ggplot() + 
+  stat_bin(aes(x = tmpSD), fill = c_dark) + 
+  labs(x = "SD RTs (ms)", title = "SDs of simulated RTs") +
+  theme_bw()
+p = ggarrange(p1, 
+  ggarrange(p2, p3, ncol = 2, labels = c("B", "C")), 
+  nrow = 2, labels = "A")
+annotate_figure(p, 
+                top = text_grob("Prior predictive checks: reaction times", 
+                face = "bold", size = 14))
+
+```
+
+Subfigure A shows the distribution of the simulated data with bluer bands being more likely than greyer bands. It shows a distribution that fits our expectations about reaction times in a simple decision task. The same applies to the distribution of the means and standard deviations in the simulated datasets. We go ahead with these priors and check the results of the SBC. We only plot the results from the models that had no divergence issues. 
+
+```{r sbc_checks3_agg, fig.height=12}
+
+# get simulation numbers with issues
+rank = max(df.results$max_rank)
+check = merge(df.results %>% 
+    group_by(sim_id) %>% 
+      summarise(
+        rhat = max(rhat, na.rm = T), 
+        mean_rank = mean(max_rank)
+        ) %>% 
+    filter(rhat >= 1.05 | mean_rank != rank), 
+  df.backend %>% filter(n_divergent > 0), all = T)
+
+# plot SBC with functions from the SBC package focusing on population-level parameters
+df.results.b = df.results %>% 
+  filter(substr(variable, 1, 2) == "b_") %>% 
+  filter(!(sim_id %in% check$sim_id))
+p1 = plot_ecdf_diff(df.results.b) + theme_bw() + theme(legend.position = "none") +
+  scale_x_continuous(breaks=scales::pretty_breaks(n = 3)) +
+  scale_y_continuous(breaks=scales::pretty_breaks(n = 3))
+p2 = plot_rank_hist(df.results.b, bins = 20) + theme_bw() +
+  scale_x_continuous(breaks=scales::pretty_breaks(n = 3)) +
+  scale_y_continuous(breaks=scales::pretty_breaks(n = 3))
+p3 = plot_sim_estimated(df.results.b, alpha = 0.5) + theme_bw() +
+  scale_x_continuous(breaks=scales::pretty_breaks(n = 3)) +
+  scale_y_continuous(breaks=scales::pretty_breaks(n = 3))
+p4 = plot_contraction(df.results.b, 
+                      prior_sd = setNames(
+                        c(as.numeric(
+                          gsub(".*, (.+)\\).*", "\\1", 
+                               priors[priors$class == "Intercept",]$prior)), 
+                          as.numeric(
+                            gsub(".*, (.+)\\).*", "\\1", 
+                                 priors[priors$class == "b",]$prior))), 
+                                          unique(df.results.b$variable))) +
+  theme_bw() +
+  scale_x_continuous(breaks=scales::pretty_breaks(n = 3)) +
+  scale_y_continuous(breaks=scales::pretty_breaks(n = 3))
+
+p = ggarrange(p1, p2, p3, p4, labels = "AUTO", ncol = 1, nrow = 4)
+annotate_figure(p, top = 
+                  text_grob("Computational faithfulness and model sensitivity", 
+                face = "bold", size = 14))
+
+```
+
+Next, we check the ranks of the parameters. If the model is unbiased, these should be uniformly distributed (Schad, Betancourt and Vasishth, 2020). The sample empirical cumulative distribution function (ECDF) lies within the theoretical distribution (95%) and the rank histogram also shows ranks within the 95% expected range, although there are some small deviations. We judge this to be acceptable.
+
+Then, we investigated the relationship between the simulated true parameters and the posterior estimates. Although there are individual values diverging from the expected pattern, most parameters were recovered successfully within an uncertainty interval of alpha = 0.05. 
+
+Last, we explore the z-score and the posterior contraction of our population-level predictors. The z-score "determines the distance of the posterior mean from the true simulating parameter", while the posterior contraction "estimates how much prior uncertainty is reduced in the posterior estimation" (Schad, Betancourt and Vasisth, 2020). All of this looks good for this model. 
+
+### Posterior predictive checks
+
+As the next step, we fit the model to the data, check whether there are divergence or rhat issues, and then check whether the chains have converged.
+
+```{r postpc_agg, fig.height=4, message=T}
+
+# fit the aggregated model
+set.seed(2469)
+m.rtc = brm(f.rtc,
+            df.rtc.agg, prior = priors,
+            family = shifted_lognormal,
+            iter = iter, warmup = warm,
+            backend = "cmdstanr", threads = threading(8),
+            file = "m_rtc_agg"
+            )
+rstan::check_hmc_diagnostics(m.rtc$fit)
+
+# check that rhats are below 1.01
+sum(brms::rhat(m.rtc) >= 1.01, na.rm = T)
+
+# check the trace plots
+post.draws = as_draws_df(m.rtc)
+mcmc_trace(post.draws, regex_pars = "^b_",
+           facet_args = list(ncol = 3)) +
+  scale_x_continuous(breaks=scales::pretty_breaks(n = 3)) +
+  scale_y_continuous(breaks=scales::pretty_breaks(n = 3))
+
+```
+
+This model has no pathological behaviour with E-BFMI, no divergent samples and no rhat that is higher or equal to 1.01. Therefore, we go ahead and perform our posterior predictive checks. 
+
+```{r postpc2_agg, fig.height=6}
+
+# get posterior predictions
+post.pred = posterior_predict(m.rtc, ndraws = nsim)
+
+# check the fit of the predicted data compared to the real data
+p1 = pp_check(m.rtc, ndraws = nsim) + 
+  theme_bw() + theme(legend.position = "none") + xlim(0, 1250)
+
+# distributions of means compared to the real values per group
+p2 = ppc_stat_grouped(df.rtc.agg$rtc, post.pred, df.rtc.agg$diagnosis) + 
+  theme_bw() + theme(legend.position = "none")
+
+p = ggarrange(p1, p2,
+          nrow = 2, ncol = 1, labels = "AUTO")
+annotate_figure(p, 
+                top = text_grob("Posterior predictive checks: RTs", 
+                face = "bold", size = 14))
+
+```
+
+This looks much better, especially when we look at the simulated means (light blue) of the three diagnostic groups in comparison to the actual means (dark blue) which is important because we draw our inferences based on the estimates of the diagnostic groups. Therefore, we can finally move on to our inferences based on the model.
+
+## Inferences
+
+Now that we are convinced that we can trust our model, we have a look at its estimate and use the hypothesis function to explore group differences.
+
+```{r final, fig.height=6}
+
+# print a summary
+summary(m.rtc)
+
+# get the estimates and compute groups
+df.m.rtc = as_draws_df(m.rtc) %>% 
+  select(starts_with("b_")) %>%
+  mutate(
+    b_COMP    = - b_diagnosis1 - b_diagnosis2,
+    b_ASD       = b_diagnosis2,
+    b_ADHD      = b_diagnosis1
+    )
+
+# plot the posterior distributions
+df.m.rtc %>% 
+  select(b_ASD, b_ADHD, b_COMP) %>%
+  pivot_longer(cols = c(b_ASD, b_ADHD, b_COMP), names_to = "coef", values_to = "estimate") %>% 
+  group_by(coef) %>%
+  mutate(
+    cred = case_when(
+      (mean(estimate) < 0 & quantile(estimate, probs = 0.975) < 0) |
+        (mean(estimate) > 0 & quantile(estimate, probs = 0.025) > 0) ~ "credible",
+      T ~ "not credible"
+    )
+  ) %>% ungroup() %>% 
+  ggplot(aes(x = estimate, y = coef, fill = cred)) +
+  geom_vline(xintercept = 0, linetype = 'dashed') +
+  ggdist::stat_halfeye(alpha = 0.7) + ylab(NULL) + theme_bw() +
+  scale_fill_manual(values = c(credible = c_dark, c_light)) + 
+  theme(legend.position = "none")
+
+# ADHD slower than COMP
+e1 = hypothesis(m.rtc, "0 < 2*diagnosis1 + diagnosis2", alpha = 0.025)
+e1
+
+# ASD slower than COMP
+e2 = hypothesis(m.rtc, "0 < 2*diagnosis2 + diagnosis1", alpha = 0.025)
+e2
+
+# extract predicted differences in ms instead of log data
+df.new = df.rtc %>% 
+  select(diagnosis) %>% 
+  distinct()
+df.ms = as.data.frame(
+  fitted(m.rtc, summary = F, 
+               newdata = df.new %>% select(diagnosis), 
+               re_formula = NA))
+colnames(df.ms) = df.new$diagnosis
+
+# calculate our difference columns
+df.ms = df.ms %>%
+  mutate(
+    COMP_ADHD  = COMP - ADHD,
+    COMP_ASD   = COMP - ASD
+  )
+
+
+```
+
+Our Bayesian linear mixed model with the hit reaction times as the outcome and diagnostic status as a predictor showed no credible differences: COMP participants reacted similarly to the ADHD group (CI of COMP - ADHD: `r round(quantile(df.ms$COMP_ADHD, 0.025)[[1]], 2)` to `r round(quantile(df.ms$COMP_ADHD, 0.975)[[1]], 2)`ms, posterior probability = `r round(e1$hypothesis$Post.Prob*100, 2)`%) and the ASD group (CI of COMP - ASD: `r round(quantile(df.ms$COMP_ASD, 0.025)[[1]], 2)` to `r round(quantile(df.ms$COMP_ASD, 0.975)[[1]], 2)`ms, posterior probability = `r round(e2$hypothesis$Post.Prob*100, 2)`%). 
+
+## Plots
+
+```{r plot, fig.height=4}
+
+# overall median reaction times
+df.rtc.agg %>% 
+  ggplot(aes(diagnosis, rtc, fill = diagnosis, colour = diagnosis)) + #
+  geom_rain(rain.side = 'r',
+boxplot.args = list(color = "black", outlier.shape = NA, show_guide = FALSE, alpha = 0.5),
+violin.args = list(color = "black", outlier.shape = NA, alpha = 0.5),
+boxplot.args.pos = list(
+  position = ggpp::position_dodgenudge(x = 0, width = 0.3), width = 0.3
+),
+point.args = list(show_guide = FALSE, alpha = .5),
+violin.args.pos = list(
+  width = 0.6, position = position_nudge(x = 0.16)),
+point.args.pos = list(position = ggpp::position_dodgenudge(x = -0.25, width = 0.1))) +
+  ylim(0, 800) +
+  scale_fill_manual(values = custom.col) +
+  scale_color_manual(values = custom.col) +
+  labs(title = "Median reaction times per subject", 
+       x = "", 
+       y = "reaction time (ms)") +
+  theme_bw() + 
+  theme(legend.position = "none", 
+        plot.title = element_text(hjust = 0.5), 
+        legend.direction = "horizontal", 
+        text = element_text(size = 15))
+
+```
+
+# Analysis of discrimination rate
+
+## SBC with group-level intercept for subjects
+
+```{r sbc_checks_disc}
+
+code = "VMM_disc"
+
+# model formula
+f.disc = brms::bf(negdisc ~ diagnosis + (1 | subID))
+
+# use more iterations and warmup since the sample size is smaller
+warm = warm * 2
+iter = iter * 2
+
+# set weakly informed priors 
+priors = c(
+  # expect high discrimination rates, therefore, low divergences
+  prior(normal(3,   1.5),  class = Intercept), # ~ 5 - 90 (+- 1 SD)
+  prior(normal(0,   1.5),  class = sd), 
+  # no particular expectations for effects
+  prior(normal(0,   1.0), class = b)
+)
+
+# check if the SBC already exists
+if (file.exists(file.path(cache_dir, sprintf("df_res_%s.rds", code)))) {
+  # load in the results of the SBC
+  df.results = readRDS(file.path(cache_dir, sprintf("df_res_%s.rds", code)))
+  df.backend = readRDS(file.path(cache_dir, sprintf("df_div_%s.rds", code)))
+  dat        = readRDS(file.path(cache_dir, sprintf("dat_%s.rds", code)))
+} else {
+  # set the seed
+  set.seed(2468)
+  # perform the SBC
+  gen = SBC_generator_brms(f.disc, data = df.disc, prior = priors,
+                           family = poisson,
+                           thin = 50, warmup = 20000, refresh = 2000)
+  dat = generate_datasets(gen, nsim)
+  saveRDS(dat, file.path(cache_dir, sprintf("dat_%s.rds", code)))
+  bck = SBC_backend_brms_from_generator(gen, chains = 4, thin = 1,
+                                      init = 0.1, warmup = warm, iter = iter)
+  # set the seed again
+  set.seed(2468)
+  res = compute_SBC(dat, 
+        bck,
+        cache_mode     = "results", 
+        cache_location = file.path(cache_dir, sprintf("res_%s", code)))
+  df.results = res$stats
+  df.backend = res$backend_diagnostics
+  saveRDS(df.results, file = file.path(cache_dir, paste0("df_res_", code, ".rds")))
+  saveRDS(df.backend, file = file.path(cache_dir, paste0("df_div_", code, ".rds")))
+  
+}
+
+```
+
+Again, we start by investigating the rhats and the number of divergent samples. This shows that `r nrow(df.results %>% group_by(sim_id) %>% summarise(rhat = max(rhat, na.rm = T)) %>% filter(rhat >= 1.05))` of `r nsim` simulations had at least one parameter that had an rhat of at least 1.05, and `r nrow(df.backend %>% filter(n_divergent > 0))` models had divergent samples. This suggests that this model performs well and we can continue with our checks by plotting the simulated values to perform prior predictive checks. 
+
+```{r sbc_checks2_disc, fig.height=8}
+
+# create a matrix out of generated data
+dvname = gsub(" ", "", gsub("[\\|~].*", "", f.disc)[1])
+dvfakemat = matrix(NA, nrow(dat[['generated']][[1]]), length(dat[['generated']])) 
+for (i in 1:length(dat[['generated']])) {
+  dvfakemat[,i] = dat[['generated']][[i]][[dvname]]
+}
+truePars = dat$variables
+dvfakemat[dvfakemat > 240] = 240
+
+# compute one histogram per simulated data-set 
+binwidth = 1
+breaks = seq(0, ceiling(max(dvfakemat, na.rm=T)), binwidth) 
+histmat = matrix(NA, ncol = length(dat), nrow = length(breaks)-1) 
+for (i in 1:nrow(truePars)) {
+  histmat[,i] = hist(dvfakemat[,i], breaks = breaks, plot = F)$counts 
+}
+# for each bin, compute quantiles across histograms 
+probs = seq(0.1, 0.9, 0.1) 
+quantmat= as.data.frame(matrix(NA, nrow=dim(histmat)[1], ncol = length(probs)))
+names(quantmat) = paste0("p", probs)
+for (i in 1:dim(histmat)[1]) {
+  quantmat[i,] = quantile(histmat[i,], p = probs)
+}
+quantmat$x = breaks[2:length(breaks)] - binwidth/2 # add bin mean 
+p1 = ggplot(data = quantmat, aes(x = x)) + 
+  geom_ribbon(aes(ymax = p0.9, ymin = p0.1), fill = c_light) + 
+  geom_ribbon(aes(ymax = p0.8, ymin = p0.2), fill = c_light_highlight) + 
+  geom_ribbon(aes(ymax = p0.7, ymin = p0.3), fill = c_mid) + 
+  geom_ribbon(aes(ymax = p0.6, ymin = p0.4), fill = c_mid_highlight) + 
+  geom_line(aes(y = p0.5), colour = c_dark, linewidth = 1) + 
+  labs(title = "Distribution of simulated negative discriminations", y = "", x = "") +
+  theme_bw()
+
+p2 = ggplot(data = quantmat, aes(x = x)) + 
+  geom_ribbon(aes(ymax = p0.9, ymin = p0.1), fill = c_light) + 
+  geom_ribbon(aes(ymax = p0.8, ymin = p0.2), fill = c_light_highlight) + 
+  geom_ribbon(aes(ymax = p0.7, ymin = p0.3), fill = c_mid) + 
+  geom_ribbon(aes(ymax = p0.6, ymin = p0.4), fill = c_mid_highlight) + 
+  geom_line(aes(y = p0.5), colour = c_dark, linewidth = 1) + 
+  xlim(0, 60) + 
+  labs(title = "Zoomed in distribution of simulated negative discriminations", y = "", x = "") +
+  theme_bw()
+
+tmpM = apply(dvfakemat, 2, mean) # mean 
+tmpSD = apply(dvfakemat, 2, sd) 
+p3 = ggplot() + 
+  stat_bin(aes(x = tmpM), fill = c_dark)  + 
+  labs(x = "Mean RTs (ms)", title = "Means of simulated RTs") +
+  theme_bw()
+p4 = ggplot() + 
+  stat_bin(aes(x = tmpSD), fill = c_dark) + 
+  labs(x = "SD RTs (ms)", title = "SDs of simulated RTs") +
+  theme_bw()
+p = ggarrange(p1, p2, 
+  ggarrange(p3, p4, ncol = 2, labels = c("B", "C")), 
+  nrow = 3, labels = "A")
+annotate_figure(p, 
+                top = text_grob("Prior predictive checks: reaction times", 
+                face = "bold", size = 14))
+
+```
+
+Subfigure A shows the distribution of the simulated data with bluer bands being more likely than greyer bands. Subfigure A shows a distribution that fits our expectations about the negative discrimination (perfect discrimination - discrimination rate) in a simple decision task, with most participants showing low rates of negative discrimination. If we zoom in, most of the data is indeed in the very low numbers. The distribution of the means and standard deviations in the simulated datasets also look good. We go ahead with these priors and check the results of the SBC. We only plot the results from the models that had no divergence issues.
+
+```{r sbc_checks3_disc, fig.height=12}
+
+# get simulation numbers with issues
+rank = max(df.results$max_rank)
+check = merge(df.results %>% 
+    group_by(sim_id) %>% 
+      summarise(
+        rhat = max(rhat, na.rm = T), 
+        mean_rank = mean(max_rank)
+        ) %>% 
+    filter(rhat >= 1.05 | mean_rank != rank), 
+  df.backend %>% filter(n_divergent > 0), all = T)
+
+# plot SBC with functions from the SBC package focusing on population-level parameters
+df.results.b = df.results %>% 
+  filter(substr(variable, 1, 2) == "b_") %>% 
+  filter(!(sim_id %in% check$sim_id))
+p1 = plot_ecdf_diff(df.results.b) + theme_bw() + theme(legend.position = "none") +
+  scale_x_continuous(breaks=scales::pretty_breaks(n = 3)) +
+  scale_y_continuous(breaks=scales::pretty_breaks(n = 3))
+p2 = plot_rank_hist(df.results.b, bins = 20) + theme_bw() +
+  scale_x_continuous(breaks=scales::pretty_breaks(n = 3)) +
+  scale_y_continuous(breaks=scales::pretty_breaks(n = 3))
+p3 = plot_sim_estimated(df.results.b, alpha = 0.5) + theme_bw() +
+  scale_x_continuous(breaks=scales::pretty_breaks(n = 3)) +
+  scale_y_continuous(breaks=scales::pretty_breaks(n = 3))
+p4 = plot_contraction(df.results.b, 
+                      prior_sd = setNames(
+                        c(as.numeric(
+                          gsub(".*, (.+)\\).*", "\\1", 
+                               priors[priors$class == "Intercept",]$prior)), 
+                          as.numeric(
+                            gsub(".*, (.+)\\).*", "\\1", 
+                                 priors[priors$class == "b",]$prior)), 
+                          as.numeric(
+                            gsub(".*, (.+)\\).*", "\\1", 
+                                 priors[priors$class == "b",]$prior))), 
+                                          unique(df.results.b$variable))) +
+  theme_bw() +
+  scale_x_continuous(breaks=scales::pretty_breaks(n = 3)) +
+  scale_y_continuous(breaks=scales::pretty_breaks(n = 3))
+
+p = ggarrange(p1, p2, p3, p4, labels = "AUTO", ncol = 1, nrow = 4)
+annotate_figure(p, top = 
+                  text_grob("Computational faithfulness and model sensitivity", 
+                face = "bold", size = 14))
+
+```
+
+Next, we check the ranks of the parameters. If the model is unbiased, these should be uniformly distributed (Schad, Betancourt and Vasishth, 2020). The sample empirical cumulative distribution function (ECDF) lies within the theoretical distribution (95%) and the rank histogram also shows ranks within the 95% expected range, although there are some small deviations. We judge this to be acceptable.
+
+Then, we investigated the relationship between the simulated true parameters and the posterior estimates. Although there are individual values diverging from the expected pattern, most parameters were recovered successfully within an uncertainty interval of alpha = 0.05. 
+
+Last, we explore the z-score and the posterior contraction of our population-level predictors. The z-score "determines the distance of the posterior mean from the true simulating parameter", while the posterior contraction "estimates how much prior uncertainty is reduced in the posterior estimation" (Schad, Betancourt and Vasisth, 2020). All of this looks good for this model. 
+
+### Posterior predictive checks
+
+As the next step, we fit the model to the data, check whether there are divergence or rhat issues, and then check whether the chains have converged.
+
+```{r postpc_disc, fig.height=4, message=T}
+
+# fit the aggregated model
+set.seed(2469)
+m.disc = brm(f.disc,
+            df.disc, prior = priors,
+            family = poisson,
+            iter = iter, warmup = warm,
+            backend = "cmdstanr", threads = threading(8),
+            file = "m_disc"
+            )
+rstan::check_hmc_diagnostics(m.disc$fit)
+
+# check that rhats are below 1.01
+sum(brms::rhat(m.disc) >= 1.01, na.rm = T)
+
+# check the trace plots
+post.draws = as_draws_df(m.disc)
+mcmc_trace(post.draws, regex_pars = "^b_",
+           facet_args = list(ncol = 3)) +
+  scale_x_continuous(breaks=scales::pretty_breaks(n = 3)) +
+  scale_y_continuous(breaks=scales::pretty_breaks(n = 3))
+
+```
+
+This model has no pathological behaviour with E-BFMI, no divergent samples and no rhat that is higher or equal to 1.01. Therefore, we go ahead and perform our posterior predictive checks. 
+
+```{r postpc2_disc, fig.height=6}
+
+# get posterior predictions
+post.pred = posterior_predict(m.disc, ndraws = nsim)
+
+# check the fit of the predicted data compared to the real data
+p1 = pp_check(m.disc, ndraws = nsim) + 
+  theme_bw() + theme(legend.position = "none") + xlim(0, 240)
+
+# distributions of means compared to the real values per group
+p2 = ppc_stat_grouped(df.disc$negdisc, post.pred, df.disc$diagnosis) + 
+  theme_bw() + theme(legend.position = "none")
+
+p = ggarrange(p1, p2,
+          nrow = 2, ncol = 1, labels = "AUTO")
+annotate_figure(p, 
+                top = text_grob("Posterior predictive checks: Discrimination rate", 
+                face = "bold", size = 14))
+
+```
+
+[!ADD]. Therefore, we can finally move on to our inferences based on the model.
+
+## Inferences
+
+Now that we are convinced that we can trust our model, we have a look at its estimate and use the hypothesis function to explore group differences. 
+
+```{r final_disc, fig.height=6}
+
+# print a summary
+summary(m.disc)
+
+# get the estimates and compute groups
+df.m.disc = as_draws_df(m.disc) %>% 
+  select(starts_with("b_")) %>%
+  mutate(
+    b_COMP    = - b_diagnosis1 - b_diagnosis2,
+    b_ASD       = b_diagnosis2,
+    b_ADHD      = b_diagnosis1
+    )
+
+# plot the posterior distributions
+df.m.disc %>% 
+  select(b_ASD, b_ADHD, b_COMP) %>%
+  pivot_longer(cols = c(b_ASD, b_ADHD, b_COMP), names_to = "coef", values_to = "estimate") %>% 
+  group_by(coef) %>%
+  mutate(
+    cred = case_when(
+      (mean(estimate) < 0 & quantile(estimate, probs = 0.975) < 0) |
+        (mean(estimate) > 0 & quantile(estimate, probs = 0.025) > 0) ~ "credible",
+      T ~ "not credible"
+    )
+  ) %>% ungroup() %>% 
+  ggplot(aes(x = estimate, y = coef, fill = cred)) +
+  geom_vline(xintercept = 0, linetype = 'dashed') +
+  ggdist::stat_halfeye(alpha = 0.7) + ylab(NULL) + theme_bw() +
+  scale_fill_manual(values = c(credible = c_dark, c_light)) + 
+  theme(legend.position = "none")
+
+# ADHD worse discrimination than COMP
+e1 = hypothesis(m.disc, "0 < 2*diagnosis1 + diagnosis2", alpha = 0.025)
+e1
+
+# ASD worse discrimination than COMP
+e2 = hypothesis(m.disc, "0 > 2*diagnosis2 + diagnosis1", alpha = 0.025)
+e2
+
+# extract predicted differences in ms instead of log data
+df.new = df.disc %>% 
+  select(diagnosis) %>% 
+  distinct()
+df.ms = as.data.frame(
+  fitted(m.disc, summary = F, 
+               newdata = df.new %>% select(diagnosis), 
+               re_formula = NA))
+colnames(df.ms) = df.new$diagnosis
+
+# calculate our difference columns
+df.ms = df.ms %>%
+  mutate(
+    COMP_ADHD  = COMP - ADHD,
+    COMP_ASD   = COMP - ASD
+  )
+
+
+```
+
+Our Bayesian linear mixed model with the negative discrimination rate (perfect discrimination rate - actual discrimination rate) as the outcome and diagnostic status as a predictor showed no credible differences: COMP participants reacted similarly to the ADHD group (CI of COMP - ADHD: `r round(quantile(df.ms$COMP_ADHD, 0.025)[[1]], 2)` to `r round(quantile(df.ms$COMP_ADHD, 0.975)[[1]], 2)`ms, posterior probability = `r round(e1$hypothesis$Post.Prob*100, 2)`%) and the ASD group (CI of COMP - ASD: `r round(quantile(df.ms$COMP_ASD, 0.025)[[1]], 2)` to `r round(quantile(df.ms$COMP_ASD, 0.975)[[1]], 2)`ms, posterior probability = `r round(e2$hypothesis$Post.Prob*100, 2)`%). 
+
+## Plots
+
+```{r plot_disc, fig.height=4}
+
+# overall median reaction times
+df.disc %>% 
+  ggplot(aes(diagnosis, disc, fill = diagnosis, colour = diagnosis)) + #
+  geom_rain(rain.side = 'r',
+boxplot.args = list(color = "black", outlier.shape = NA, show_guide = FALSE, alpha = 0.5),
+violin.args = list(color = "black", outlier.shape = NA, alpha = 0.5),
+boxplot.args.pos = list(
+  position = ggpp::position_dodgenudge(x = 0, width = 0.3), width = 0.3
+),
+point.args = list(show_guide = FALSE, alpha = .5),
+violin.args.pos = list(
+  width = 0.6, position = position_nudge(x = 0.16)),
+point.args.pos = list(position = ggpp::position_dodgenudge(x = -0.25, width = 0.1))) +
+  ylim(0, 240) +
+  scale_fill_manual(values = custom.col) +
+  scale_color_manual(values = custom.col) +
+  labs(title = "Discrimination rate per subject", 
+       x = "", 
+       y = "") +
+  theme_bw() + 
+  theme(legend.position = "none", 
+        plot.title = element_text(hjust = 0.5), 
+        legend.direction = "horizontal", 
+        text = element_text(size = 15))
+
+```
+
+# Analysis of fixation proportions to centre AOI
+
+## Bayesian ANOVAs
+
+```{r fix_aov}
+
+# check which outcomes of interest are normally distributed
+df.fix.agg %>% 
+  group_by(diagnosis) %>%
+  rstatix::shapiro_test(fix.total, fix.prop, rfix.total, rfix.prop) %>%
+  mutate(
+    sig = if_else(p < 0.05, "*", "")
+  ) %>% arrange(variable)
+
+# ANOVA for the ranked proportional fixation durations
+aov.fix = BayesFactor::anovaBF(rfix.prop ~ diagnosis, data = df.fix.agg)
+aov.fix@bayesFactor[["bf"]]
+effectsize::interpret_bf(aov.fix@bayesFactor[["bf"]], log = T)
+
+# also explore if there are any differences in total fixation durations
+aov.total = BayesFactor::anovaBF(rfix.total ~ diagnosis, data = df.fix.agg)
+aov.total@bayesFactor[["bf"]]
+effectsize::interpret_bf(aov.total@bayesFactor[["bf"]], log = T)
+
+# print some info on the raw values
+vtable::st(df.fix.agg, 
+           vars = c('fix.centre', 'fix.periphery', 'fix.total', 'fix.prop'),
+           group = 'diagnosis')
+
+```
+
+
+## Plots
+
+```{r plot_fix, fig.height=4}
+
+# overall
+df.fix.agg %>% 
+  ggplot(aes(diagnosis, fix.prop, fill = diagnosis, colour = diagnosis)) + #
+  geom_rain(rain.side = 'r',
+boxplot.args = list(color = "black", outlier.shape = NA, show_guide = FALSE, alpha = 0.5),
+violin.args = list(color = "black", outlier.shape = NA, alpha = 0.5),
+boxplot.args.pos = list(
+  position = ggpp::position_dodgenudge(x = 0, width = 0.3), width = 0.3
+),
+point.args = list(show_guide = FALSE, alpha = .5),
+violin.args.pos = list(
+  width = 0.6, position = position_nudge(x = 0.16)),
+point.args.pos = list(position = ggpp::position_dodgenudge(x = -0.25, width = 0.1))) +
+  ylim(0.25, 1) +
+  scale_fill_manual(values = custom.col) +
+  scale_color_manual(values = custom.col) +
+  labs(title = "Fixation proportions to centre of the screen", 
+       x = "", 
+       y = "% of fixation durations") +
+  theme_bw() + 
+  theme(legend.position = "none", 
+        plot.title = element_text(hjust = 0.5), 
+        legend.direction = "horizontal", 
+        text = element_text(size = 15))
+
+```
+
+## Heatmaps
+
+![Heatmap of gaze pattern of the COMP group](heatmaps/VMM_COMP_heatmap.png) 
+
+
+![Heatmap of gaze pattern of the ADHD group](heatmaps/VMM_ADHD_heatmap.png) 
+
+
+![Heatmap of gaze pattern of the ASD group](heatmaps/VMM_ASD_heatmap.png) 
+
+# Explorative analysis of RT costs of changes
+
+```{r rt_change_AOV}
+
+# calculate rt difference from early to late fixation cross switches within a block
+df.rtc.change = df.rtc %>%
+  mutate(
+    switch = case_when(
+      time_since_c < 2*750 ~ "early",
+      time_since_c >= 2*750 & time_since_c < 5*750 ~ "middle",
+      T ~ "late"
+    )
+  ) %>% filter(switch != "late") %>%
+  group_by(subID, diagnosis, switch, which_change) %>%
+  summarise(
+    rtc.avg = mean(rtc, na.rm = T)
+  ) %>%
+  pivot_wider(values_from = rtc.avg, names_from = switch) %>%
+  mutate(
+    rt.diff = middle - early
+  )
+
+df.rtc.change %>%
+  group_by(which_change) %>%
+  shapiro_test(rt.diff)
+
+# run an ANOVA
+aov.diff = anovaBF(rt.diff ~ diagnosis*which_change, data = df.rtc.change)
+aov.diff
+
+aov.diff@bayesFactor$bf
+
+```
+
+None of the models outperform the intercept model. This suggests that the difference in reaction time between early and middle switches were not dependent on the diagnosis, the type of the change (emotion, colour or both) or their interaction. Let's still plot the differences.
+
+```{r rt_change_plot}
+
+df.rtc.change %>% 
+  ggplot(aes(diagnosis, rt.diff, fill = which_change, colour = which_change)) + #
+  geom_rain(rain.side = 'r',
+boxplot.args = list(color = "black", outlier.shape = NA, show_guide = FALSE, alpha = 0.5),
+violin.args = list(color = "black", outlier.shape = NA, alpha = 0.5),
+boxplot.args.pos = list(
+  position = ggpp::position_dodgenudge(x = 0, width = 0.3), width = 0.3
+),
+point.args = list(show_guide = FALSE, alpha = .5),
+violin.args.pos = list(
+  width = 0.6, position = position_nudge(x = 0.16)),
+point.args.pos = list(position = ggpp::position_dodgenudge(x = -0.25, width = 0.1))) +
+  scale_fill_manual(values = custom.col) +
+  scale_color_manual(values = custom.col) +
+  labs(title = "Reaction time costs due to changes in face colour, emotion or both", 
+       x = "", 
+       y = "rt difference (ms)") +
+  theme_bw() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5), 
+        legend.direction = "horizontal", 
+        text = element_text(size = 15))
+
+```
