@@ -61,7 +61,7 @@ plan(multisession)
 
 # Introduction
 
-[!ADD info on study and task]
+In this study, participants performed a change detection task in the fMRI scanner. Specifically, they were asked to press a button as fast as possible when the fixation cross changed orientation. While they performed this task, four faces were presented in the periphery for a short duration. These faces were coloured in pink or green and showed either a fearful or a happy expression. While the neuroimaging analysis focuses on the building and violation of expectations based on these faces, this RMarkdown focuses on the analysis of the behavioural data. 
 
 ## Some general settings
 
@@ -1107,7 +1107,7 @@ annotate_figure(p,
 
 ```
 
-[!ADD]. Therefore, we can finally move on to our inferences based on the model.
+The predicted values based on the model in light blue capture the actual data in dark blue quite well, both in terms of overall data (A) and aggregated values for the diagnostic groups (B). Therefore, we can finally move on to our inferences based on the model.
 
 ## Inferences
 
