@@ -1,0 +1,2 @@
+Cluster Index	Value	x	y	z	
+1	26	48	25	62

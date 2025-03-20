@@ -41,8 +41,12 @@ custom.col = c(c_dark_highlight, c_green, "#CC79A7", "#D55E00")
 use_cmdstanr = getOption("SBC.vignettes_cmdstanr", TRUE) # Set to false to use rst
 options(brms.backend = "cmdstanr")
 cache_dir = "./_brms_SBC_cache"
+model_dir = "./_brms_models"
 if(!dir.exists(cache_dir)) {
   dir.create(cache_dir)
+}
+if(!dir.exists(model_dir)) {
+  dir.create(model_dir)
 }
 
 # use parallel processing
@@ -105,7 +109,7 @@ Since this is sensitive data, we load the anonymised version of the processed da
 ```{r prep_data}
 
 # check if the data file exists, if yes load it:
-if (!file.exists("VMM_data.RData")) {
+if (!file.exists(file.path(model_dir, "VMM_data.RData"))) {
   
   # set file paths
   fl.path = '/home/emba/Documents/EMBA'
@@ -361,11 +365,11 @@ if (!file.exists("VMM_data.RData")) {
   # save it all
   save(df.disc, df.tsk, df.fix.agg, 
        df.table, df.sht, ct.full, ct.mf, gen.desc, df.meds, tb.edu, ct.edu,
-       file = "VMM_data.RData")
+       file = file.path(model_dir, "VMM_data.RData"))
   
 } else {
   
-  load("VMM_data.RData")
+  load(file.path(model_dir, "VMM_data.RData"))
   
 }
 
@@ -738,7 +742,7 @@ m.rtc = brm(f.rtc,
             family = shifted_lognormal,
             iter = iter, warmup = warm,
             backend = "cmdstanr", threads = threading(8),
-            file = "m_rtc_agg"
+            file = file.path(model_dir, "m_rtc_agg")
             )
 rstan::check_hmc_diagnostics(m.rtc$fit)
 
@@ -1068,7 +1072,7 @@ m.disc = brm(f.disc,
             family = poisson,
             iter = iter, warmup = warm,
             backend = "cmdstanr", threads = threading(8),
-            file = "m_disc"
+            file = file.path(model_dir, "m_disc")
             )
 rstan::check_hmc_diagnostics(m.disc$fit)
 

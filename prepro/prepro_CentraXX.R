@@ -286,24 +286,9 @@ df.sub = df.sub %>%
       T ~ sprintf("CHECK: %s or %s", Code, ASD.icd10)
     ),
     adhd.meds = case_when(
-      grepl("elvans|elvanz", meds, ignore.case = T) ~ "lisdexamfetamine",
       grepl("ritalin|methylphenidat|medikinet", meds, ignore.case = T) ~ "methylphenidate",
-      grepl("atomoxetin", meds, ignore.case = T) ~ "atomoxetine", 
-      grepl("attentin", meds, ignore.case = T) ~ "amphetamine", 
-      grepl("atomoxetin|atofab", meds, ignore.case = T) ~ "atomoxetin" 
-    ),
-    dep.meds = case_when(
-      grepl("escitalopram|citalopram|fluoxetin|sertralin", meds, ignore.case = T) ~ "SSRI",
-      grepl("venlafaxin|wenlaflaxin", meds, ignore.case = T) ~ "SSNRI",
-      grepl("milnacipran", meds, ignore.case = T) ~ "SNRI",
-      grepl("bupropion|Buproprion", meds, ignore.case = T) ~ "atypical",
-      grepl("lithium|quilonum", meds, ignore.case = T) ~ "lithium",
-      grepl("imipramin|mirtazipin", meds, ignore.case = T) ~ "TCA"
-    ),
-    psych.meds = case_when(
-      grepl("Risperidon|amisulprid|aripiprazol|quetapin|quetiapin", meds, ignore.case = T) ~ "atypical antipsychotic",
-      grepl("Pregabalin", meds, ignore.case = T) ~ "antiepileptic",
-      grepl("pipamperon", meds, ignore.case = T) ~ "typical antipsychotic"
+      grepl("elvan|attentin", meds, ignore.case = T) ~ "amphetamine", 
+      grepl("atomoxetin|atofab", meds, ignore.case = T) ~ "atomoxetine"
     ),
     cis       = if_else(as.numeric(cis)==1, "cis", "trans")
   )

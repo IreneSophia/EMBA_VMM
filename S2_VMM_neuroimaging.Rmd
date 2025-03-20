@@ -195,10 +195,10 @@ df.act = read_csv(file.path("fMRI_data", "grp_use-sorted.csv"),
   select(diagnosis) %>%
   mutate(
     # load zstats for eps-c
-    `colour PE-rFG`  = scan(file.path("fMRI_data", "eps_c_C7_meants.txt")),
-    `colour PE-rSTS` = scan(file.path("fMRI_data", "eps_c_C6_meants.txt")),
-    `colour PE-rINS` = scan(file.path("fMRI_data", "eps_c_C5_meants.txt")),
-    `colour PE-rACC` = scan(file.path("fMRI_data", "eps_c_C4_meants.txt")),
+    `colour pwPE-rFG`  = scan(file.path("fMRI_data", "eps_c_C7_meants.txt")),
+    `colour pwPE-rSTS` = scan(file.path("fMRI_data", "eps_c_C6_meants.txt")),
+    `colour pwPE-rINS` = scan(file.path("fMRI_data", "eps_c_C5_meants.txt")),
+    `colour pwPE-rACC` = scan(file.path("fMRI_data", "eps_c_C4_meants.txt")),
     # load zstats for mu-z
     `colour PS-rINS`  = scan(file.path("fMRI_data", "mu_c_C3_meants.txt")),
     `colour PS-lINS`  = scan(file.path("fMRI_data", "mu_c_C4_meants.txt")),
@@ -288,5 +288,68 @@ df.aov = data.frame(comb, bf.log, bf.cor) %>%
 
 kable(df.aov %>% arrange(bf.cor))
 
+
+```
+
+## Focusing on fusiform gyrus
+
+```{r fusiform}
+
+# load in the extracted activation
+df.fg = read_csv(file.path("fMRI_data", "grp_use-sorted.csv"), 
+                  show_col_types = F) %>%
+  mutate(
+    diagnosis = fct_recode(diagnosis, 
+                           "COMP" = "CTR")
+  ) %>%
+  select(diagnosis) %>%
+  mutate(
+    # load zstats for eps-c
+    `colour pwPE`   = scan(file.path("fMRI_data", "eps_c_rFG_meants.txt")),
+    # load zstats for eps-e
+    `emotion pwPE`  = scan(file.path("fMRI_data", "eps_e_rFG_meants.txt")),
+    ) %>%
+  pivot_longer(cols = -diagnosis, names_to = "parameter", values_to = "activation") %>%
+  mutate_if(is.character, as.factor)
+
+
+# check normal distribution
+df.fg %>% group_by(diagnosis, parameter) %>%
+  shapiro_test(activation) %>%
+  arrange(parameter)
+
+aov.pwPE = anovaBF(activation ~ diagnosis * parameter, data = df.fg)
+as.data.frame(aov.pwPE@bayesFactor) %>%
+  select(bf) %>%
+  mutate(
+    interpretation = interpret_bf(bf, log = T)
+  )
+
+# plot 
+df.fg %>%
+  ggplot(aes(parameter, activation, fill = diagnosis, colour = diagnosis)) + #
+  geom_rain(rain.side = 'r',
+boxplot.args = list(color = "black", outlier.shape = NA, show.legend = FALSE, alpha = .8),
+violin.args = list(color = "black", outlier.shape = NA, alpha = .6),
+boxplot.args.pos = list(
+  position = ggpp::position_dodgenudge(x = 0, width = 0.3), width = 0.3
+),
+point.args = list(show_guide = FALSE, alpha = .5, size = 0.5),
+violin.args.pos = list(
+  width = 0.6, position = position_nudge(x = 0.16)),
+point.args.pos = list(position = ggpp::position_dodgenudge(x = -0.25, width = 0.1))) +
+  scale_fill_manual(values = custom.col) +
+  scale_color_manual(values = custom.col) +
+  labs(title = "Right fusiform gyrus", x = "", y = "z-stat") + 
+  geom_hline(yintercept = 0) +
+  theme_bw() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5), 
+        legend.direction = "horizontal", 
+        text = element_text(size = 12, family = "mono", face = "bold")
+        )
+
+ggsave("rFG_zstat.pdf",
+       units  = "mm", width  = 170, height = 100, dpi    = 300)
 
 ```

@@ -1,0 +1,171 @@
+,no,label,name,abbr
+0,1,Precentral_L,Precentral gyrus,PreCG
+1,2,Precentral_R,Precentral gyrus,PreCG
+2,3,Frontal_Sup_2_L,"Superior frontal gyrus, dorsolateral",SFG
+3,4,Frontal_Sup_2_R,"Superior frontal gyrus, dorsolateral",SFG
+4,5,Frontal_Mid_2_L,Middle frontal gyrus,MFG
+5,6,Frontal_Mid_2_R,Middle frontal gyrus,MFG
+6,7,Frontal_Inf_Oper_L,"Inferior frontal gyrus, opercular part",IFGoperc
+7,8,Frontal_Inf_Oper_R,"Inferior frontal gyrus, opercular part",IFGoperc
+8,9,Frontal_Inf_Tri_L,"Inferior frontal gyrus, triangular part",IFGtriang
+9,10,Frontal_Inf_Tri_R,"Inferior frontal gyrus, triangular part",IFGtriang
+10,11,Frontal_Inf_Orb_2_L,"IFG pars orbitalis,",IFGorb
+11,12,Frontal_Inf_Orb_2_R,"IFG pars orbitalis,",IFGorb
+12,13,Rolandic_Oper_L,Rolandic operculum,ROL
+13,14,Rolandic_Oper_R,Rolandic operculum,ROL
+14,15,Supp_Motor_Area_L,Supplementary motor area,SMA
+15,16,Supp_Motor_Area_R,Supplementary motor area,SMA
+16,17,Olfactory_L,Olfactory cortex,OLF
+17,18,Olfactory_R,Olfactory cortex,OLF
+18,19,Frontal_Sup_Medial_L,"Superior frontal gyrus, medial",SFGmedial
+19,20,Frontal_Sup_Medial_R,"Superior frontal gyrus, medial",SFGmedial
+20,21,Frontal_Med_Orb_L,"Superior frontal gyrus, medial orbital",PFCventmed
+21,22,Frontal_Med_Orb_R,"Superior frontal gyrus, medial orbital",PFCventmed
+22,23,Rectus_L,Gyrus rectus,REC
+23,24,Rectus_R,Gyrus rectus,REC
+24,25,OFCmed_L,Medial orbital gyrus,OFCmed
+25,26,OFCmed_R,Medial orbital gyrus,OFCmed
+26,27,OFCant_L,Anterior orbital gyrus,OFCant
+27,28,OFCant_R,Anterior orbital gyrus,OFCant
+28,29,OFCpost_L,Posterior orbital gyrus,OFCpost
+29,30,OFCpost_R,Posterior orbital gyrus,OFCpost
+30,31,OFClat_L,Lateral orbital gyrus,OFClat
+31,32,OFClat_R,Lateral orbital gyrus,OFClat
+32,33,Insula_L,Insula,INS
+33,34,Insula_R,Insula,INS
+34,35,Cingulate_Ant_L,Anterior cingulate & paracingulate gyri,ACC
+35,36,Cingulate_Ant_R,Anterior cingulate & paracingulate gyri,ACC
+36,37,Cingulate_Mid_L,Middle cingulate & paracingulate gyri,MCC
+37,38,Cingulate_Mid_R,Middle cingulate & paracingulate gyri,MCC
+38,39,Cingulate_Post_L,Posterior cingulate gyrus,PCC
+39,40,Cingulate_Post_R,Posterior cingulate gyrus,PCC
+40,41,Hippocampus_L,Hippocampus,HIP
+41,42,Hippocampus_R,Hippocampus,HIP
+42,43,ParaHippocampal_L,Parahippocampal gyrus,PHG
+43,44,ParaHippocampal_R,Parahippocampal gyrus,PHG
+44,45,Amygdala_L,Amygdala,AMYG
+45,46,Amygdala_R,Amygdala,AMYG
+46,47,Calcarine_L,Calcarine fissure and surrounding cortex,CAL
+47,48,Calcarine_R,Calcarine fissure and surrounding cortex,CAL
+48,49,Cuneus_L,Cuneus,CUN
+49,50,Cuneus_R,Cuneus,CUN
+50,51,Lingual_L,Lingual gyrus,LING
+51,52,Lingual_R,Lingual gyrus,LING
+52,53,Occipital_Sup_L,Superior occipital gyrus,SOG
+53,54,Occipital_Sup_R,Superior occipital gyrus,SOG
+54,55,Occipital_Mid_L,Middle occipital gyrus,MOG
+55,56,Occipital_Mid_R,Middle occipital gyrus,MOG
+56,57,Occipital_Inf_L,Inferior occipital gyrus,IOG
+57,58,Occipital_Inf_R,Inferior occipital gyrus,IOG
+58,59,Fusiform_L,Fusiform gyrus,FFG
+59,60,Fusiform_R,Fusiform gyrus,FFG
+60,61,Postcentral_L,Postcentral gyrus,PoCG
+61,62,Postcentral_R,Postcentral gyrus,PoCG
+62,63,Parietal_Sup_L,Superior parietal gyrus,SPG
+63,64,Parietal_Sup_R,Superior parietal gyrus,SPG
+64,65,Parietal_Inf_L,"Inferior parietal gyrus, excluding supramarginal and angular gyri",IPG
+65,66,Parietal_Inf_R,"Inferior parietal gyrus, excluding supramarginal and angular gyri",IPG
+66,67,SupraMarginal_L,SupraMarginal gyrus,SMG
+67,68,SupraMarginal_R,SupraMarginal gyrus,SMG
+68,69,Angular_L,Angular gyrus,ANG
+69,70,Angular_R,Angular gyrus,ANG
+70,71,Precuneus_L,Precuneus,PCUN
+71,72,Precuneus_R,Precuneus,PCUN
+72,73,Paracentral_Lobule_L,Paracentral lobule,PCL
+73,74,Paracentral_Lobule_R,Paracentral lobule,PCL
+74,75,Caudate_L,Caudate nucleus,CAU
+75,76,Caudate_R,Caudate nucleus,CAU
+76,77,Putamen_L,"Lenticular nucleus, Putamen",PUT
+77,78,Putamen_R,"Lenticular nucleus, Putamen",PUT
+78,79,Pallidum_L,"Lenticular nucleus, Pallidum",PAL
+79,80,Pallidum_R,"Lenticular nucleus, Pallidum",PAL
+80,81,Thalamus_L,Thalamus,THA
+81,82,Thalamus_R,Thalamus,THA
+82,83,Heschl_L,Heschl’s gyrus,HES
+83,84,Heschl_R,Heschl’s gyrus,HES
+84,85,Temporal_Sup_L,Superior temporal gyrus,STG
+85,86,Temporal_Sup_R,Superior temporal gyrus,STG
+86,87,Temporal_Pole_Sup_L,Temporal pole: superior temporal gyrus,TPOsup
+87,88,Temporal_Pole_Sup_R,Temporal pole: superior temporal gyrus,TPOsup
+88,89,Temporal_Mid_L,Middle temporal gyrus,MTG
+89,90,Temporal_Mid_R,Middle temporal gyrus,MTG
+90,91,Temporal_Pole_Mid_L,Temporal pole: middle temporal gyrus,TPOmid
+91,92,Temporal_Pole_Mid_R,Temporal pole: middle temporal gyrus,TPOmid
+92,93,Temporal_Inf_L,Inferior temporal gyrus,ITG
+93,94,Temporal_Inf_R,Inferior temporal gyrus,ITG
+94,95,Cerebellum_Crus1_L,Crus I of cerebellar hemisphere,CERCRU1
+95,96,Cerebellum_Crus1_R,Crus I of cerebellar hemisphere,CERCRU1
+96,97,Cerebellum_Crus2_L,Crus II of cerebellar hemisphere,CERCRU2
+97,98,Cerebellum_Crus2_R,Crus II of cerebellar hemisphere,CERCRU2
+98,99,Cerebellum_3_L,Lobule III of cerebellar hemisphere,CER3
+99,100,Cerebellum_3_R,Lobule III of cerebellar hemisphere,CER3
+100,101,Cerebellum_4_5_L,"Lobule IV, V of cerebellar hemisphere",CER4_5
+101,102,Cerebellum_4_5_R,"Lobule IV, V of cerebellar hemisphere",CER4_5
+102,103,Cerebellum_6_L,Lobule VI of cerebellar hemisphere,CER6
+103,104,Cerebellum_6_R,Lobule VI of cerebellar hemisphere,CER6
+104,105,Cerebellum_7b_L,Lobule VIIB of cerebellar hemisphere,CER7b
+105,106,Cerebellum_7b_R,Lobule VIIB of cerebellar hemisphere,CER7b
+106,107,Cerebellum_8_L,Lobule VIII of cerebellar hemisphere,CER8
+107,108,Cerebellum_8_R,Lobule VIII of cerebellar hemisphere,CER8
+108,109,Cerebellum_9_L,Lobule IX of cerebellar hemisphere,CER9
+109,110,Cerebellum_9_R,Lobule IX of cerebellar hemisphere,CER9
+110,111,Cerebellum_10_L,Lobule X of cerebellar hemisphere,CER10
+111,112,Cerebellum_10_R,Lobule X of cerebellar hemisphere,CER10
+112,113,Vermis_1_2,"Lobule I, II of vermis",VER1_2
+113,114,Vermis_3,Lobule III of vermis,VER3
+114,115,Vermis_4_5,"Lobule IV, V of vermis",VER4_5
+115,116,Vermis_6,Lobule VI of vermis,VER6
+116,117,Vermis_7,Lobule VII of vermis,VER7
+117,118,Vermis_8,Lobule VIII of vermis,VER8
+118,119,Vermis_9,Lobule IX of vermis,VER9
+119,120,Vermis_10,Lobule X of vermis,VER10
+120,121,Thal_AV_L,"Thalamus, Anteroventral Nucleus",tAV
+121,122,Thal_AV_R,"Thalamus, Anteroventral Nucleus",tAV
+122,123,Thal_LP_L,Lateral posterior,tLP
+123,124,Thal_LP_R,Lateral posterior,tLP
+124,125,Thal_VA_L,Ventral anterior,tVA
+125,126,Thal_VA_R,Ventral anterior,tVA
+126,127,Thal_VL_L,Ventral lateral,tVL
+127,128,Thal_VL_R,Ventral lateral,tVL
+128,129,Thal_VPL_L,Ventral posterolateral,tVPL
+129,130,Thal_VPL_R,Ventral posterolateral,tVPL
+130,131,Thal_IL_L,Intralaminar,tIL
+131,132,Thal_IL_R,Intralaminar,tIL
+132,133,Thal_Re_L,Reuniens,tRe
+133,134,Thal_Re_R,Reuniens,tRe
+134,135,Thal_MDm_L,Mediodorsal medial magnocellular,tMDm
+135,136,Thal_MDm_R,Mediodorsal medial magnocellular,tMDm
+136,137,Thal_MDl_L,Mediodorsal lateral parvocellular,tMDl
+137,138,Thal_MDl_R,Mediodorsal lateral parvocellular,tMDl
+138,139,Thal_LGN_L,Lateral geniculate,tLGN
+139,140,Thal_LGN_R,Lateral geniculate,tLGN
+140,141,Thal_MGN_L,Medial Geniculate,tMGN
+141,142,Thal_MGN_R,Medial Geniculate,tMGN
+142,143,Thal_PuI_L,Pulvinar anterior,tPuA
+143,144,Thal_PuI_R,Pulvinar anterior,tPuA
+144,145,Thal_PuM_L,Pulvinar medial,tPuM
+145,146,Thal_PuM_R,Pulvinar medial,tPuM
+146,147,Thal_PuA_L,Pulvinar lateral,tPuL
+147,148,Thal_PuA_R,Pulvinar lateral,tPuL
+148,149,Thal_PuL_L,Pulvinar inferior,tPuI
+149,150,Thal_PuL_R,Pulvinar inferior,tPuI
+150,151,ACC_sub_L,"Anterior cingulate cortex, subgenual",ACCsub
+151,152,ACC_sub_R,"Anterior cingulate cortex, subgenual",ACCsub
+152,153,ACC_pre_L,"Anterior cingulate cortex, pregenual",ACCpre
+153,154,ACC_pre_R,"Anterior cingulate cortex, pregenual",ACCpre
+154,155,ACC_sup_L,"Anterior cingulate cortex, supracallosal",ACCsup
+155,156,ACC_sup_R,"Anterior cingulate cortex, supracallosal",ACCsup
+156,157,N_Acc_L,Nucleus accumbens,Nacc
+157,158,N_Acc_R,Nucleus accumbens,Nacc
+158,159,VTA_L,Ventral tegmental area,VTA
+159,160,VTA_R,Ventral tegmental area,VTA
+160,161,SN_pc_L,"Substantia nigra, pars compacta",SNpc
+161,162,SN_pc_R,"Substantia nigra, pars compacta",SNpc
+162,163,SN_pr_L,"Substantia nigra, pars reticulata",SNpr
+163,164,SN_pr_R,"Substantia nigra, pars reticulata",SNpr
+164,165,Red_N_L,Red nucleus,RedN
+165,166,Red_N_R,Red nucleus,RedN
+166,167,LC_L,Locus coeruleus,LC
+167,168,LC_R,Locus coeruleus,LC
+168,169,Raphe_D,"Raphe nucleus, dorsal",RapheD
+169,170,Raphe_M,"Raphe nucleus, median",RapheM

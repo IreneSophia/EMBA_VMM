@@ -1,0 +1,5 @@
+Cluster Index	Voxels	1-p-MAX	1-p-MAX X (vox)	1-p-MAX Y (vox)	1-p-MAX Z (vox)	1-p-COG X (vox)	1-p-COG Y (vox)	1-p-COG Z (vox)
+4	124	0.983	49	24	64	49.1	26.6	62.2
+3	86	0.986	61	37	26	60.8	35.8	27.3
+2	62	0.977	30	31	28	28.9	32.7	27.7
+1	2	0.952	52	26	60	52	26	59.5
