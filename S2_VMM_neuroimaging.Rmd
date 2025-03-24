@@ -270,7 +270,7 @@ for (c in unique(df.act$param_region)) {
 
 # apply multiple comparison correction after Westfall (1997)
 # as described by de Jong (2019)
-m = 6 # output of ceil(max(roots([1, -1, -26]))) in MATLAB
+m = 6 # output of ceil(max(roots([1, -1, -28]))) in MATLAB
 c = 0.5^(2/m);
 podds = exp(bf.log) * ((1-c)/c)
 bf.cor = c()
@@ -319,10 +319,25 @@ df.fg %>% group_by(diagnosis, parameter) %>%
   arrange(parameter)
 
 aov.pwPE = anovaBF(activation ~ diagnosis * parameter, data = df.fg)
+
+# multiple comparison correction
+bf.log = aov.pwPE@bayesFactor$bf
+podds = exp(bf.log) * ((1-c)/c)
+bf.cor = c()
+for (i in 1:length(bf.log)) {
+  ph1    = podds[i]/(1 + podds[i])
+  bf.cor = c(bf.cor, log(ph1/(1 - ph1)))
+}
+
 as.data.frame(aov.pwPE@bayesFactor) %>%
   select(bf) %>%
   mutate(
-    interpretation = interpret_bf(bf, log = T)
+    bf.cor = bf.cor
+  ) %>%
+  arrange(desc(bf.cor)) %>%
+  mutate(
+    null.int = interpret_bf(bf.cor, log = T),
+    next.int = interpret_bf(bf.cor - lead(bf.cor), log = T)
   )
 
 # plot 
