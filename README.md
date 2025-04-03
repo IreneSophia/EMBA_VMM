@@ -44,22 +44,14 @@ Additionally, the third level analysis of the FSL analysis can be run by using t
 
 This extraction was done by Anna Yurova. The stimulus orders were kindly provided by the original authors of Stefanics et al. (2019). Using the HGF requires to download the TAPAS toolbox (we used version 7.1) and replace the path in `runHGF.m` with the correct path. The config file of the `tapas_hgf_binary_config` was rewritten and is shared here as `tapas_hgf_binary_k2_0_config_VMM.m`. Specifically, the config file was adjusted to essentially change the three-level to a two-level HGF by setting kappa_2 to 0, thereby cutting off the third level from any information. Additionally, we set the variance of mu_3 and omega_3 to 0 to stop the optimisation algorithm from attempting to estimate these parameters. This approach was suggested to us by Mathys, see https://github.com/translationalneuromodeling/tapas/issues/260.
 
-### Versions and installation
-
-Each PDF file contains an output of the versions used to run that particular script. It is important to install all packages mentioned in the file before running a specific analysis file. Not all packages can be installed with `install.packages`, please consult the respective installation pages of the packages for more information. If the models are rerun, ensure a valid cmdstanr installation. 
-
-To render the RMarkdown file as a PDF, an installation of pdflatex is mandatory. 
-
-We used MATLAB R2023a for preprocessing of the eye tracking data as well as for the HGF application via the TAPAS toolbox. 
-
-## FSL analysis
+### FSL analysis
 
 The FSL analysis was run using FSL FEAT. The designs and the bash script to run them are placed in the `prepro` folder. We created two models on the subject-level: 
 
 * SMP : simple model focusing on neural adaptation
 * HGF : model including the HGF parameters
 
-The third level analyses can be run via the following bash scripts: 
+The third level analyses can be run via the following bash scripts using the data in `fMRI_data`: 
 
 * `runFSL-3_ostt.sh` : This script runs the one sample t-tests for the SMP model
 * `runFSL-3_ostt_con.sh` : This script runs the one sample t-tests for the HGF model using designs saved in `fMRI_designs`
@@ -67,7 +59,7 @@ The third level analyses can be run via the following bash scripts:
 
 All can be run in one go using the `runFSL-3_all.sh` script. 
 
-## fMRI_data files
+### fMRI_data files
 
 This folder contains the following nifti files: 
 
@@ -85,6 +77,14 @@ As well as the following txt and csv files:
 
 * `grp_use-sorted.csv` : diagnostic group of the participants in the order of the images in the 4D nifti files
 * `*_meants.txt` : subject-specific mean zstats for specific activation clusters based on the pooled one sample t-tests examining the task effects
+
+### Versions and installation
+
+Each PDF file contains an output of the versions used to run that particular script. It is important to install all packages mentioned in the file before running a specific analysis file. Not all packages can be installed with `install.packages`, please consult the respective installation pages of the packages for more information. If the models are rerun, ensure a valid cmdstanr installation. 
+
+To render the RMarkdown file as a PDF, an installation of pdflatex is mandatory. 
+
+We used MATLAB R2023a for preprocessing of the eye tracking data as well as for the HGF application via the TAPAS toolbox. 
 
 ## Project members
 
