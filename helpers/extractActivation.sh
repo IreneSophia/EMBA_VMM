@@ -8,7 +8,7 @@ if [ ! -d "$dir_out" ]; then
   mkdir -p "$dir_out";
 fi
 
-# look at the fusiform gyrus for the pwPE comparison
+# look at the fusiform gyrus for the pwPE comparison based on eps_c cluster 7
 
 fslmeants -i $dir_data/HGF_all_zstat4.nii.gz -o $dir_data/eps_c_rFG_meants.txt -m $dir_data/ROI_hgf_all_eps_c_C7
 

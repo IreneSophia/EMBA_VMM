@@ -52,13 +52,39 @@ To render the RMarkdown file as a PDF, an installation of pdflatex is mandatory.
 
 We used MATLAB R2023a for preprocessing of the eye tracking data as well as for the HGF application via the TAPAS toolbox. 
 
-## Variables
+## FSL analysis
 
-To be added. 
+The FSL analysis was run using FSL FEAT. The designs and the bash script to run them are placed in the `prepro` folder. We created two models on the subject-level: 
 
-## Result files
+* SMP : simple model focusing on neural adaptation
+* HGF : model including the HGF parameters
 
-To be added. 
+The third level analyses can be run via the following bash scripts: 
+
+* `runFSL-3_ostt.sh` : This script runs the one sample t-tests for the SMP model
+* `runFSL-3_ostt_con.sh` : This script runs the one sample t-tests for the HGF model using designs saved in `fMRI_designs`
+* `runFSL-3_tstt.sh` : This script runs the one sample t-tests for the HGF model using designs saved in `fMRI_designs`
+
+All can be run in one go using the `runFSL-3_all.sh` script. 
+
+## fMRI_data files
+
+This folder contains the following nifti files: 
+
+* `HGF_all_copeX.nii.gz` : 4D files containing the COPE files of all participants from the HGF model (4 = pwPE colour; 5 = pwPE emotion; 6 = PS colour; 7 = PS emotion)
+* `HGF_all_zstatX.nii.gz` : 4D files containing the zstat files of all participants from the HGF model (4 = pwPE colour; 5 = pwPE emotion; 6 = PS colour; 7 = PS emotion)
+* `HGF_ctr_copeX.nii.gz` : 4D files containing the COPE files of the comparison participants from the HGF model (4 = pwPE colour; 5 = pwPE emotion; 6 = PS colour; 7 = PS emotion)
+* `ROI_hgf_all_*.nii.gz` : ROI masks based on the larger clusters of the one sample t-tests of the HGF parameters
+* `SMP_all_copeX.nii.gz` : 4D files containing the COPE files of all participants from the SMP model (4 = neural adaptation; 5 = neural adaptation for colour; 6 = neural adaptation for emotion)
+* `SMP_all_zstat4.nii.gz` : 4D files containing the zstat files of all participants from the SMP model assessing neural adaptation
+* `WB_mask.nii.gz` : combined brain mask of all participants for the whole-brain analysis
+* `ROI_c.nii` : ROI mask containing the bilateral fusiform gyrus
+* `ROI_e.nii` : ROI mask containing the bilateral fusiform gyrus as well as the preregistered areas associated with emotions (bilateral anterior cingulate cortices, amygdalae, insulae and precunei as well as right supramarginal gyrus and posterior temporal gyrus)
+
+As well as the following txt and csv files: 
+
+* `grp_use-sorted.csv` : diagnostic group of the participants in the order of the images in the 4D nifti files
+* `*_meants.txt` : subject-specific mean zstats for specific activation clusters based on the pooled one sample t-tests examining the task effects
 
 ## Project members
 
