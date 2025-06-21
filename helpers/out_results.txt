@@ -148,3 +148,123 @@
 0 0.000000 
 /home/emba/Documents/EMBA/EMBA_VMM_scripts/results_ostt//smp_adapt_pos_tfce_corrp_tstat1.nii.gz
 0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_c_ROI_tfce_corrp_tstat1.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_c_ROI_tfce_corrp_tstat2.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_c_ROI_tfce_corrp_tstat3.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_c_ROI_tfce_corrp_tstat4.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_c_ROI_tfce_corrp_tstat5.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_c_ROI_tfce_corrp_tstat6.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_c_tfce_corrp_tstat1.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_c_tfce_corrp_tstat2.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_c_tfce_corrp_tstat3.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_c_tfce_corrp_tstat4.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_c_tfce_corrp_tstat5.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_c_tfce_corrp_tstat6.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_e_ROI_tfce_corrp_tstat1.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_e_ROI_tfce_corrp_tstat2.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_e_ROI_tfce_corrp_tstat3.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_e_ROI_tfce_corrp_tstat4.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_e_ROI_tfce_corrp_tstat5.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_e_ROI_tfce_corrp_tstat6.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_e_tfce_corrp_tstat1.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_e_tfce_corrp_tstat2.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_e_tfce_corrp_tstat3.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_e_tfce_corrp_tstat4.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_e_tfce_corrp_tstat5.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_eps_e_tfce_corrp_tstat6.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_mu_c_tfce_corrp_tstat1.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_mu_c_tfce_corrp_tstat2.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_mu_c_tfce_corrp_tstat3.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_mu_c_tfce_corrp_tstat4.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_mu_c_tfce_corrp_tstat5.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_mu_c_tfce_corrp_tstat6.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_mu_e_tfce_corrp_tstat1.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_mu_e_tfce_corrp_tstat2.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_mu_e_tfce_corrp_tstat3.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_mu_e_tfce_corrp_tstat4.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_mu_e_tfce_corrp_tstat5.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//hgf_mu_e_tfce_corrp_tstat6.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_c_tfce_corrp_tstat1.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_c_tfce_corrp_tstat2.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_c_tfce_corrp_tstat3.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_c_tfce_corrp_tstat4.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_c_tfce_corrp_tstat5.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_c_tfce_corrp_tstat6.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_e_ROI_tfce_corrp_tstat1.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_e_ROI_tfce_corrp_tstat2.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_e_ROI_tfce_corrp_tstat3.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_e_ROI_tfce_corrp_tstat4.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_e_ROI_tfce_corrp_tstat5.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_e_ROI_tfce_corrp_tstat6.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_e_tfce_corrp_tstat1.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_e_tfce_corrp_tstat2.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_e_tfce_corrp_tstat3.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_e_tfce_corrp_tstat4.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_e_tfce_corrp_tstat5.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_e_tfce_corrp_tstat6.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_tfce_corrp_tstat1.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_tfce_corrp_tstat2.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_tfce_corrp_tstat3.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_tfce_corrp_tstat4.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_tfce_corrp_tstat5.nii.gz
+0 0.000000 
+/home/emba/Documents/EMBA/EMBA_VMM_scripts/results_tstt-cov//smp_adapt_tfce_corrp_tstat6.nii.gz
+0 0.000000 
