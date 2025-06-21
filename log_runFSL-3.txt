@@ -1,0 +1,9 @@
+Sa 21 Jun 2025 10:57:21 CEST start SMP_all_cope4
+Sa 21 Jun 2025 10:57:21 CEST start SMP_all_cope4
+Sa 21 Jun 2025 10:57:21 CEST start SMP_all_cope5
+Sa 21 Jun 2025 10:57:21 CEST start SMP_all_cope6
+Sa 21 Jun 2025 10:57:21 CEST start HGF_all_cope4
+Sa 21 Jun 2025 10:57:21 CEST start HGF_all_cope5
+Sa 21 Jun 2025 10:57:21 CEST start HGF_all_cope6
+Sa 21 Jun 2025 10:57:21 CEST start HGF_all_cope7
+Sa 21 Jun 2025 10:57:21 CEST end for all ostts with contrasts
