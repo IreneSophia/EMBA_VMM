@@ -8,7 +8,7 @@ if [ ! -d "$dir_out" ]; then
   mkdir -p "$dir_out";
 fi
 
-codes=( "hgf_all_eps_c_ROI" "hgf_all_mu_c_ROI" "hgf_all_mu_e_ROI" "hgf_ctr_eps_c_ROI" "hgf_ctr_mu_e_ROI" )
+codes=( "hgf_all_eps_c_ROI" "hgf_all_mu_c_ROI" "hgf_all_mu_e_ROI" "hgf_ctr_eps_c_ROI" "hgf_ctr_mu_c_ROI" "hgf_ctr_mu_e_ROI" )
 con="fstat1"
 
 for code in "${codes[@]}"

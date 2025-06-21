@@ -26,6 +26,11 @@ if [ $ctr == 1 ]; then
 
 	randomise -i "$dir_out/fMRI_data/$code" -o "$dir_ostt/hgf_ctr_eps_e_ROI" -d "$dir_out/fMRI_designs/glm_ctr_ostt-f.mat" -t "$dir_out/fMRI_designs/glm_ctr_ostt-f.con" -f "$dir_out/fMRI_designs/glm_ctr_ostt-f.fts" -m fMRI_data/ROI_e -1 -T -n $nsim &
 
+	code="HGF_ctr_cope6"
+	echo "$(date) start $code" >> "$log_file"
+
+	randomise -i "$dir_out/fMRI_data/$code" -o "$dir_ostt/hgf_ctr_mu_c_ROI" -d "$dir_out/fMRI_designs/glm_ctr_ostt-f.mat" -t "$dir_out/fMRI_designs/glm_ctr_ostt-f.con" -f "$dir_out/fMRI_designs/glm_ctr_ostt-f.fts" -m fMRI_data/ROI_c -1 -T -n $nsim &
+	
 	code="HGF_ctr_cope7"
 	echo "$(date) start $code" >> "$log_file"
 
