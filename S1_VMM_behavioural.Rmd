@@ -15,6 +15,7 @@ ls.packages = c("knitr",# kable
     "bridgesampling",   # bridge_sampler
     "tidyverse",        # tibble stuff
     "ggpubr",           # ggarrange
+    "officer",          # read_docx
     "ggrain",           # geom_rain
     "bayesplot",        # plots for posterior predictive checks
     "SBC",              # plots for checking computational faithfulness
@@ -119,7 +120,7 @@ if (!file.exists(file.path(model_dir, "VMM_data.RData"))) {
   load(file.path(dt.path, "VMM_preprocessed.RData"))
   
   # load list of participants which are included in the fMRI analysis
-  df.inc = read_delim(file.path(fl.path, "VMM_analysis/01_FSL/all_use-new")) %>%
+  df.inc = read_delim("all_use-new") %>%
     filter(diagnosis != "pilot") %>% select(subID)
   
   # load list of participants which are included in fMRI ET analysis
@@ -130,18 +131,11 @@ if (!file.exists(file.path(model_dir, "VMM_data.RData"))) {
                     show_col_types = F) %>%
     mutate(
       diagnosis = recode(diagnosis, "CTR" = "COMP")
-    ) %>% filter(subID %in% df.inc$subID) %>% 
-    # add whether or not psych medication (binary)
-    mutate(
-      psych.meds_binary = if_else(!is.na(dep.meds) | 
-                                    !is.na(psych.meds) | 
-                                    !is.na(adhd.meds), T, F)
-      )
+    ) %>% filter(subID %in% df.inc$subID)
   
-  # summarise medication
-  df.meds = df.sub %>% 
-    group_by(diagnosis, adhd.meds, psych.meds_binary) %>% 
-    count()
+  # load information on medication
+  df.meds = read_csv(file.path("/home/emba/Documents/EMBA/CentraXX", 
+                               "VMM_medication.csv"))
   
   # merge together and anonymise
   df.disc = merge(df.disc, df.sub %>% select(subID, diagnosis), all.y = T) %>%
@@ -192,6 +186,27 @@ if (!file.exists(file.path(model_dir, "VMM_data.RData"))) {
                              sampleType = "indepMulti", 
                              fixedMargin = "cols")
   
+  # we add this information to our demographics tablerbind(df.demo, 
+  df.demo = data.frame(
+                    measurement = "Gender",
+                    ADHD         = sprintf("%.0f - %.0f - %.0f", 
+                                          tb.gen["fem","ADHD"], 
+                                          tb.gen["mal","ADHD"],
+                                          tb.gen["dan","ADHD"]
+                    ),
+                    ASD         = sprintf("%.0f - %.0f - %.0f", 
+                                          tb.gen["fem","ASD"], 
+                                          tb.gen["mal","ASD"],
+                                          tb.gen["dan","ASD"]
+                    ),
+                    COMP         = sprintf("%.0f - %.0f - %.0f", 
+                                          tb.gen["fem","COMP"], 
+                                          tb.gen["mal","COMP"],
+                                          tb.gen["dan","COMP"]
+                    ),
+                    bf.log      = ct.full@bayesFactor[["bf"]]
+                  )
+  
   # keep the gender descriptions of the DAN group
   gen.desc = unique(df.sub[df.sub$gender == "dan",]$gender_desc)
   
@@ -201,170 +216,121 @@ if (!file.exists(file.path(model_dir, "VMM_data.RData"))) {
                                sampleType = "indepMulti", 
                                fixedMargin = "cols")
   
-  # check which outcomes of interest are normally distributed
-  df.sht = df.sub %>% 
-    group_by(diagnosis) %>%
-    shapiro_test(age, iq, BDI_total, ASRS_total, 
-                 RAADS_total, TAS_total) %>%
-    mutate(
-      sig = if_else(p < 0.05, "*", "")
-    ) %>% arrange(variable)
+  # convert the measures to long which we include in the participant table
+  df.sublng = df.sub %>%
+    # rename some of the variables
+    rename(
+      "RADS-R" = "RAADS_total",
+      "BDI" = "BDI_total",
+      "ASRS-v1.1" = "ASRS_total",
+      "Age"    = "age",
+      "IQ estimate" = "iq"
+    ) %>%
+    select(diagnosis, Age, `IQ estimate`, `ASRS-v1.1`, `RADS-R`, BDI) %>%
+    pivot_longer(cols = where(is.numeric)) %>%
+    mutate_if(is.character, as.factor)
   
-  # most of the measures are not normally distributed; 
-  # therefore, we compute ranks for these outcomes
-  df.sub = df.sub %>% 
-    mutate(
-      rage   = rank(age),
-      rASRS  = rank(ASRS_total),
-      rBDI   = rank(BDI_total),
-      rIQ    = rank(iq),
-      rRAADS = rank(RAADS_total),
-      rTAS   = if_else(is.na(TAS_total), NA, rank(TAS_total)),  # one person is missing the TAS!
-      diagnosis = as.factor(diagnosis)
-    )
+  # initialise the data frame for posthoc tests
+  df.post = data.frame()
   
-  # now we can compute our ANOVAs
-  aov.age   = anovaBF(rage   ~ diagnosis, data = df.sub)
-  aov.iq    = anovaBF(rIQ    ~ diagnosis, data = df.sub)
-  aov.BDI   = anovaBF(rBDI   ~ diagnosis, data = df.sub)
-  aov.ASRS  = anovaBF(rASRS  ~ diagnosis, data = df.sub)
-  aov.RAADS = anovaBF(rRAADS ~ diagnosis, data = df.sub)
-  aov.TAS   = anovaBF(rTAS   ~ diagnosis, data = df.sub %>% filter(!is.na(rTAS)))
+  # now we loop through our measurements to create our demographics table
+  for (m in unique(df.sublng$name)) {
+    # select the relevant part of df.sub
+    df.rel = df.sublng %>% filter(name == m)
+    # check which of the group's data is not normally distributed
+    df.sht = df.rel %>% 
+      group_by(diagnosis) %>%
+      shapiro_test(value) %>%
+      filter(p < 0.05)
+    # if more than zero is not normally distributed...
+    if (nrow(df.sht) > 0) {
+      # rank transform the data
+      df.rel = df.rel %>% ungroup() %>% mutate(value = rank(value))
+    }
+    # compute the ANOVA
+    aov = anovaBF(value ~ diagnosis, data = df.rel)
+    # get back the original, untransformed values 
+    df.rel = df.sublng %>% filter(name == m)
+    # put all the information into the demographics table
+    df.demo = rbind(df.demo, 
+                    data.frame(
+                      measurement = m,
+                      ADHD        = sprintf("%.2f ±%.2f (%.0f to %.0f)", 
+                                            # ignore NAs because edu missing for one person
+                                            mean(df.rel[df.rel$diagnosis == "ADHD",]$value, na.rm = T), 
+                                            sd(df.rel[df.rel$diagnosis == "ADHD",]$value, na.rm = T)/
+                                              sum(df.rel$diagnosis == "ADHD"), 
+                                            min(df.rel[df.rel$diagnosis == "ADHD",]$value, na.rm = T), 
+                                            max(df.rel[df.rel$diagnosis == "ADHD",]$value, na.rm = T)
+                      ),
+                      ASD         = sprintf("%.2f ±%.2f (%.0f to %.0f)", 
+                                            mean(df.rel[df.rel$diagnosis == "ASD",]$value), 
+                                            sd(df.rel[df.rel$diagnosis == "ASD",]$value)/
+                                              sum(df.rel$diagnosis == "ASD"), 
+                                            min(df.rel[df.rel$diagnosis == "ASD",]$value), 
+                                            max(df.rel[df.rel$diagnosis == "ASD",]$value)
+                      ),
+                      COMP        = sprintf("%.2f ±%.2f (%.0f to %.0f)", 
+                                            mean(df.rel[df.rel$diagnosis == "COMP",]$value), 
+                                            sd(df.rel[df.rel$diagnosis == "COMP",]$value)/
+                                              sum(df.rel$diagnosis == "COMP"), 
+                                            min(df.rel[df.rel$diagnosis == "COMP",]$value), 
+                                            max(df.rel[df.rel$diagnosis == "COMP",]$value)
+                      ),
+                      bf.log      = aov@bayesFactor[["bf"]]
+                    ))
+    
+    # next, we want to check whether there are group differences
+    if (abs(exp(aov@bayesFactor$bf)) > 3) {
+      # do the group comparisons 
+      aov.ADHDvASD  = anovaBF(value ~ diagnosis, 
+                              data = df.rel %>% filter(diagnosis %in% c("ADHD", "ASD")))
+      aov.ADHDvCOMP = anovaBF(value ~ diagnosis, 
+                              data = df.rel %>% filter(diagnosis %in% c("ADHD", "COMP")))
+      aov.ASDvCOMP  = anovaBF(value ~ diagnosis, 
+                              data = df.rel %>% filter(diagnosis %in% c("ASD",  "COMP")))
+      # put into the posthoc data frame
+      df.post = rbind(df.post, 
+                    data.frame(
+                      measurement = m,
+                      ADHDvASD    = aov.ADHDvASD@bayesFactor[["bf"]],
+                      ADHDvCOMP   = aov.ADHDvCOMP@bayesFactor[["bf"]],
+                      ASDvCOMP    = aov.ASDvCOMP@bayesFactor[["bf"]]
+                    ))
+    }
+  }
   
-  # ...and put everything in a new dataframe for printing
-  measurement  = "Age"
-  ADHD     = sprintf("%.2f (±%.2f)", 
-                     mean(df.sub[df.sub$diagnosis == "ADHD",]$age), 
-                     sd(df.sub[df.sub$diagnosis == "ADHD",]$age)/
-                       sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",])))
-  ASD      = sprintf("%.2f (±%.2f)", 
-                     mean(df.sub[df.sub$diagnosis == "ASD",]$age), 
-                     sd(df.sub[df.sub$diagnosis == "ASD",]$age)/
-                       sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",])))
-  COMP      = sprintf("%.2f (±%.2f)", 
-                      mean(df.sub[df.sub$diagnosis == "COMP",]$age), 
-                      sd(df.sub[df.sub$diagnosis == "COMP",]$age)/
-                        sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",])))
-  logBF10 = sprintf("%.3f", aov.age@bayesFactor[["bf"]])
-  df.table = data.frame(measurement, ADHD, ASD, COMP, logBF10)
-  df.table = rbind(df.table,
-       c(
-         "ASRS",
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ADHD",]$ASRS_total),
-                 sd(df.sub[df.sub$diagnosis == "ADHD",]$ASRS_total)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ASD",]$ASRS_total), 
-                 sd(df.sub[df.sub$diagnosis == "ASD",]$ASRS_total)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",]))),
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "COMP",]$ASRS_total),
-                 sd(df.sub[df.sub$diagnosis == "COMP",]$ASRS_total)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",]))),
-         sprintf("%.3f", aov.ASRS@bayesFactor[["bf"]])
-       ),
-       c(
-         "BDI",
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ADHD",]$BDI_total), 
-                 sd(df.sub[df.sub$diagnosis == "ADHD",]$BDI_total)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ASD",]$BDI_total), 
-                 sd(df.sub[df.sub$diagnosis == "ASD",]$BDI_total)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",]))),
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "COMP",]$BDI_total), 
-                 sd(df.sub[df.sub$diagnosis == "COMP",]$BDI_total)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",]))),
-         sprintf("%.3f", aov.BDI@bayesFactor[["bf"]])
-       ),
-       c(
-         "Education (1-5)",
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ADHD",]$edu), 
-                 sd(df.sub[df.sub$diagnosis == "ADHD",]$edu)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ASD",]$edu), 
-                 sd(df.sub[df.sub$diagnosis == "ASD",]$edu)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",]))),
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "COMP",]$edu), 
-                 sd(df.sub[df.sub$diagnosis == "COMP",]$edu)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",]))),
-         sprintf("%.3f", ct.edu@bayesFactor[["bf"]])
-       ),
-       c(
-         "Gender (diverse/agender - female - male)",
-         sprintf("%d - %d - %d", 
-                 nrow(df.sub[df.sub$diagnosis == "ADHD" & df.sub$gender == "dan",]), 
-                 nrow(df.sub[df.sub$diagnosis == "ADHD" & df.sub$gender == "fem",]), 
-                 nrow(df.sub[df.sub$diagnosis == "ADHD" & df.sub$gender == "mal",])),
-         sprintf("%d - %d - %d", 
-                 nrow(df.sub[df.sub$diagnosis == "ASD" & df.sub$gender == "dan",]), 
-                 nrow(df.sub[df.sub$diagnosis == "ASD" & df.sub$gender == "fem",]), 
-                 nrow(df.sub[df.sub$diagnosis == "ASD" & df.sub$gender == "mal",])),
-         sprintf("%d - %d - %d", 
-                 nrow(df.sub[df.sub$diagnosis == "COMP" & df.sub$gender == "dan",]), 
-                 nrow(df.sub[df.sub$diagnosis == "COMP" & df.sub$gender == "fem",]), 
-                 nrow(df.sub[df.sub$diagnosis == "COMP" & df.sub$gender == "mal",])),
-         sprintf("%.3f", ct.full@bayesFactor[["bf"]])
-       ),
-       c(
-         "IQ",
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ADHD",]$iq), 
-                 sd(df.sub[df.sub$diagnosis == "ADHD",]$iq)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ASD",]$iq), 
-                 sd(df.sub[df.sub$diagnosis == "ASD",]$iq)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",]))),
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "COMP",]$iq), 
-                 sd(df.sub[df.sub$diagnosis == "COMP",]$iq)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",]))),
-         sprintf("%.3f", aov.iq@bayesFactor[["bf"]])
-       ),
-       c(
-         "RAADS",
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ADHD",]$RAADS_total), 
-                 sd(df.sub[df.sub$diagnosis == "ADHD",]$RAADS_total)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ASD",]$RAADS_total), 
-                 sd(df.sub[df.sub$diagnosis == "ASD",]$RAADS_total)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD",]))),
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "COMP",]$RAADS_total), 
-                 sd(df.sub[df.sub$diagnosis == "COMP",]$RAADS_total)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",]))),
-         sprintf("%.3f", aov.RAADS@bayesFactor[["bf"]])
-       ),
-       c(
-         "TAS",
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ADHD",]$TAS_total), 
-                 sd(df.sub[df.sub$diagnosis == "ADHD",]$TAS_total)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ADHD",]))),
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "ASD",]$TAS_total, na.rm = T), 
-                 sd(df.sub[df.sub$diagnosis == "ASD",]$TAS_total, na.rm = T)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "ASD" & !is.na(df.sub$TAS_total),]))),
-         sprintf("%.2f (±%.2f)", 
-                 mean(df.sub[df.sub$diagnosis == "COMP",]$TAS_total), 
-                 sd(df.sub[df.sub$diagnosis == "COMP",]$TAS_total)/
-                   sqrt(nrow(df.sub[df.sub$diagnosis == "COMP",]))),
-         sprintf("%.3f", aov.TAS@bayesFactor[["bf"]])
-       )
-  ) %>% arrange(measurement)
+  # save the demographics and the posthoc table as word documents
+  read_docx() %>%
+    body_add_table(df.demo %>% arrange(measurement) %>% 
+                         mutate(bf.log = 
+                                  if_else(
+                                    bf.log > 3, 
+                                    sprintf("%.3f*", bf.log),
+                                    sprintf("%.3f", bf.log)))) %>%
+    print(target = "VMM_demo.docx")
+  read_docx() %>%
+    body_add_table(df.post  %>% 
+                     mutate_if(is.numeric, 
+                               ~ifelse(.>3,sprintf("%.3f*", .),sprintf("%.3f", .)))) %>%
+    print(target = "VMM_post.docx")
+  
+  # check how many of each group are above threshold for asrs and rads
+  tb.screen = xtabs(~ diagnosis + screening, 
+                   data = df.sub %>%
+                     select(diagnosis, ASRS_screen, RAADS_total) %>%
+                     mutate(
+                       screening = case_when(
+                         ASRS_screen >= 4 & RAADS_total >  81 ~ "screenBOTH",
+                         ASRS_screen >= 4 & RAADS_total <= 81 ~ "screenADHD",
+                         ASRS_screen <  4 & RAADS_total <= 81 ~ "screenNone",
+                         ASRS_screen <  4 & RAADS_total >  81 ~ "screenASD"
+                       )
+                     ))
   
   # save it all
-  save(df.disc, df.tsk, df.fix.agg, 
-       df.table, df.sht, ct.full, ct.mf, gen.desc, df.meds, tb.edu, ct.edu,
+  save(df.disc, df.tsk, df.fix.agg, tb.screen, 
+       ct.full, ct.mf, gen.desc, df.meds, tb.edu, ct.edu,
        file = file.path(model_dir, "VMM_data.RData"))
   
 } else {
@@ -378,10 +344,6 @@ kable(df.disc %>% select(subID, diagnosis) %>% distinct() %>% group_by(diagnosis
 
 # print the group of included participants with eye tracking
 kable(df.fix.agg %>% select(subID, diagnosis) %>% distinct() %>% group_by(diagnosis) %>% count())
-
-# print the outcome of the shapiro tests
-kable(df.sht)
-rm(df.sht)
 
 # print the outcome of the contingency table concerning gender
 ct.full@bayesFactor
@@ -411,9 +373,6 @@ contrasts(df.disc$diagnosis) = contr.sum(3)
 contrasts(df.disc$diagnosis)
 contrasts(df.fix.agg$diagnosis) = contr.sum(3)
 contrasts(df.fix.agg$diagnosis)
-
-# print final group comparisons for the paper
-kable(df.table)
 
 # print medication for the paper
 kable(df.meds)

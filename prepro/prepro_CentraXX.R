@@ -29,8 +29,23 @@ df.date = df %>%
 
 ## preprocess each questionnaire separately:
 
-# ASRS (0 bis 16: sehr unwahrscheinlich, 17 bis 23: es besteht die Möglichkeit, 24 oder größer: sehr wahrscheinlich)
-df.asrs = df %>% filter(questionnaire == "PSY_NEVIA_ASRS") %>%
+# ASRS: sum scores
+df.asrs1 = df %>% filter(questionnaire == "PSY_NEVIA_ASRS") %>%
+  mutate(
+    numericValue = recode(value, 
+                          `Nie` = 0,
+                          `Selten` = 1,
+                          `Manchmal` = 2,
+                          `Oft` = 3,
+                          `Sehr oft` = 4)
+  ) %>% select(questionnaire, PID, numericValue) %>%
+  group_by(PID) %>% 
+  summarise(
+    ASRS_total = sum(numericValue, na.rm = T)
+  )
+
+# ASRS: screening according to Kessler et al. (2005)
+df.asrs2 = df %>% filter(questionnaire == "PSY_NEVIA_ASRS" & section == "Teil A") %>%
   mutate(
     numericValue = recode(value, 
                           `Nie` = 0,
@@ -38,34 +53,51 @@ df.asrs = df %>% filter(questionnaire == "PSY_NEVIA_ASRS") %>%
                           `Manchmal` = 2,
                           `Oft` = 3,
                           `Sehr oft` = 4),
-    section = recode(section, 
-                     `Teil A` = "A",
-                     `Teil B` = "B", 
-                     `Teil C` = "B")
-  ) %>% select(questionnaire, PID, section, numericValue) %>%
-  group_by(PID, section) %>% 
-  summarise(
-    ASRS_total = sum(numericValue, na.rm = T),
-    ASRS_extreme = sum(numericValue >= 3)
-  ) %>% pivot_wider(names_from = section, values_from = c(ASRS_total, ASRS_extreme)) %>%
+    coding = case_match(item,
+                        "PSY_NEVIA_ASRS_1" ~ 1,
+                        "PSY_NEVIA_ASRS_2" ~ 1,
+                        "PSY_NEVIA_ASRS_3" ~ 1,
+                        "PSY_NEVIA_ASRS_4" ~ 0,
+                        "PSY_NEVIA_ASRS_5" ~ 0,
+                        "PSY_NEVIA_ASRS_6" ~ 0)
+  ) %>% select(questionnaire, PID, item, coding, numericValue) %>%
   mutate(
-    ASRS_total = sum(c(ASRS_total_A, ASRS_total_B))
+    value = case_when(
+      coding == 1 & numericValue >= 2 ~ 1,
+      coding == 0 & numericValue >= 3 ~ 1,
+      T ~ 0
+    )
+  ) %>%
+  group_by(PID) %>%
+  summarise(
+    ASRS_screen = sum(value)
   )
 
 # PSY_NEVIA_BDI 
 # (10 bis 19: leichtes depressives Syndrom, 20 bis 29: mittelgradiges, >= 30: schweres)
-df.bdi = df %>% filter(questionnaire == "PSY_NEVIA_BDI")  %>%
+df.bdi = df %>% filter(questionnaire == "PSY_NEVIA_BDI") %>% 
+  group_by(PID) %>%
+  mutate(
+    PSY_BOKI_BDI_V = if_else(value == "JA", 1, 0),
+    PSY_BOKI_BDI_V = sum(PSY_BOKI_BDI_V, na.rm = T)
+  ) %>%
+  filter(item != "PSY_BOKI_BDI_V") %>%
   ungroup() %>%
   mutate(
     numericValue = case_when(
-      "NEIN" == value ~ 0,
-      "Ja"   == value ~ 1,
+      # if they answered deliberate weight loss with yes, ignore item S
+      item == "PSY_BOKI_BDI_S" & PSY_BOKI_BDI_V == 1 ~ 0,
       # if there are multiple answers chosen, select the highest value
       grepl(", ", numericValue, fixed = T) ~ max(readr::parse_number(str_split(numericValue, ", ")[[1]])),
       # if not, just convert it to a number
       T ~ as.numeric(numericValue)
-      )
-    ) %>%
+    ),
+    # fix a mistake in CentraXX which codes one item wrong
+    numericValue = case_when(
+      item == "PSY_BOKI_BDI_F" & numericValue > 2 ~ numericValue - 1,
+      T ~ numericValue
+    )
+  ) %>%
   select(questionnaire, PID, item, numericValue) %>%
   group_by(PID) %>%
   summarise(
@@ -154,10 +186,10 @@ df.mwt = df %>% filter(questionnaire == "PSY_NEVIA_MWT") %>%
 df.raads = df %>% filter(questionnaire == "PSY_NEVIA_RAADS") %>%
   mutate(
     numericValue = recode(value, 
-           `Nur wahr als ich < 16 J. alt war` = 1,
-           `Nur jetzt wahr` = 2,
-           `Wahr jetzt und als ich jung war` = 3,
-           `Nicht wahr` = 0),
+                          `Nur wahr als ich < 16 J. alt war` = 1,
+                          `Nur jetzt wahr` = 2,
+                          `Wahr jetzt und als ich jung war` = 3,
+                          `Nicht wahr` = 0),
     section = gsub("^Abschnitt ", "", section),
     item = gsub("^PSY_NEVIA_RAADS_", "", item)
   ) %>% group_by(PID) %>% 
@@ -192,7 +224,7 @@ df.tas = df.tas %>% group_by(PID) %>%
   )
 
 # merge all together
-ls.df = list(df.date, df.demo, df.cft, df.mwt, df.bdi, df.asrs, df.raads, df.tas)
+ls.df = list(df.date, df.demo, df.cft, df.mwt, df.bdi, df.asrs1, df.asrs2, df.raads, df.tas)
 df.sub = ls.df %>% reduce(full_join, by = "PID") %>% 
   mutate(
     age = as.numeric(age)
@@ -276,7 +308,7 @@ df.sub = df.sub %>%
         read_csv(list.files(pattern = ".*_code.csv")) %>%
           select(subID, Code, Group),
         all = T
-        ) %>%
+  ) %>%
   filter(Group != "NOT") %>%
   mutate(
     ASD.icd10 = case_when(
