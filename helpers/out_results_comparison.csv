@@ -1,0 +1,11 @@
+contrast,test,ROI,none,cov
+hgf_all_eps_c_ROI_tfce_corrp_fstat1,ostt,TRUE,437 3496.000000 ,435 3480.000000 
+hgf_all_eps_c_tfce_corrp_fstat1,ostt,FALSE,34342 274736.000000 ,NA
+hgf_all_mu_c_ROI_tfce_corrp_fstat1,ostt,TRUE,3562 28496.000000 ,3553 28424.000000 
+hgf_all_mu_c_tfce_corrp_fstat1,ostt,FALSE,55067 440536.000000 ,NA
+hgf_all_mu_e_ROI_tfce_corrp_fstat1,ostt,TRUE,274 2192.000000 ,246 1968.000000 
+hgf_all_mu_e_tfce_corrp_fstat1,ostt,FALSE,11110 88880.000000 ,NA
+hgf_ctr_eps_c_ROI_tfce_corrp_fstat1,ostt,TRUE,241 1928.000000 ,NA
+hgf_ctr_mu_c_ROI_tfce_corrp_fstat1,ostt,TRUE,18 144.000000 ,NA
+hgf_ctr_mu_e_ROI_tfce_corrp_fstat1,ostt,TRUE,2 16.000000 ,NA
+smp_adapt_neg_ROI_tfce_corrp_tstat1,ostt,TRUE,94 752.000000 ,118 944.000000 
