@@ -1,0 +1,10 @@
+/ContrastName1	positive 
+/ContrastName2	negative 
+/NumWaves	3
+/NumContrasts	2
+/PPheights		1.023829e+00	1.023829e+00
+/RequiredEffect		0.493	0.493
+
+/Matrix
+1.000000e+00 0.000000e+00 0.000000e+00 
+-1.000000e+00 0.000000e+00 0.000000e+00 

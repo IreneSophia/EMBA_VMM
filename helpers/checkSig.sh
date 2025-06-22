@@ -1,5 +1,7 @@
 #!/bin/bash
 
+## ORIGINAL RESULTS
+
 # set our directories
 cd ..
 dir_ostt="results_ostt"

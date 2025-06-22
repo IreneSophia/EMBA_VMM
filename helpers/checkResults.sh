@@ -30,3 +30,12 @@ do
    echo $FILE >> "$dir_hel/out_results.txt"
    fslstats $FILE -l 0.95 -V >> "$dir_hel/out_results.txt"
 done
+
+dir_res="$dir_out/results_ostt-cov/"
+
+for FILE in $dir_res/*_tfce_corrp_*.nii.gz
+do
+   :
+   echo $FILE >> "$dir_hel/out_results.txt"
+   fslstats $FILE -l 0.95 -V >> "$dir_hel/out_results.txt"
+done

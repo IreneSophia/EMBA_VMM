@@ -66,5 +66,33 @@ if [ $pooled == 1 ]; then
 	
 fi
 
+## Continue with pooled sample whole-brain
+
+pooled=0
+
+if [ $pooled == 1 ]; then
+
+	code="HGF_all_cope4"
+	echo "$(date) start $code" >> "$log_file"
+
+	randomise -i "$dir_out/fMRI_data/$code" -o "$dir_ostt/hgf_all_eps_c" -d "$dir_out/fMRI_designs/glm_ostt-f.mat" -t "$dir_out/fMRI_designs/glm_ostt-f.con" -f "$dir_out/fMRI_designs/glm_ostt-f.fts" -m fMRI_data/WB_mask -1 -T -n $nsim &
+
+	code="HGF_all_cope5"
+	echo "$(date) start $code" >> "$log_file"
+
+	randomise -i "$dir_out/fMRI_data/$code" -o "$dir_ostt/hgf_all_eps_e" -d "$dir_out/fMRI_designs/glm_ostt-f.mat" -t "$dir_out/fMRI_designs/glm_ostt-f.con" -f "$dir_out/fMRI_designs/glm_ostt-f.fts" -m fMRI_data/WB_mask -1 -T -n $nsim &
+
+	code="HGF_all_cope6"
+	echo "$(date) start $code" >> "$log_file"
+
+	randomise -i "$dir_out/fMRI_data/$code" -o "$dir_ostt/hgf_all_mu_c" -d "$dir_out/fMRI_designs/glm_ostt-f.mat" -t "$dir_out/fMRI_designs/glm_ostt-f.con" -f "$dir_out/fMRI_designs/glm_ostt-f.fts" -m fMRI_data/WB_mask -1 -T -n $nsim &
+
+	code="HGF_all_cope7"
+	echo "$(date) start $code" >> "$log_file"
+
+	randomise -i "$dir_out/fMRI_data/$code" -o "$dir_ostt/hgf_all_mu_e" -d "$dir_out/fMRI_designs/glm_ostt-f.mat" -t "$dir_out/fMRI_designs/glm_ostt-f.con" -f "$dir_out/fMRI_designs/glm_ostt-f.fts" -m fMRI_data/WB_mask -1 -T -n $nsim &
+	
+fi
+
 echo "$(date) end for all ostts with contrasts" >> "$log_file"
 

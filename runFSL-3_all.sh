@@ -6,5 +6,9 @@ bash runFSL-3_ostt_con.sh
 
 bash runFSL-3_tstt.sh
 
+bash runFSL-3_tstt-cov.sh
+
+bash runFSL-3_ostt_con-cov.sh
+
 /sbin/shutdown -h now
 
