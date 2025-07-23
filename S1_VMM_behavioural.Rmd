@@ -259,21 +259,21 @@ if (!file.exists(file.path(model_dir, "VMM_data.RData"))) {
                                             # ignore NAs because edu missing for one person
                                             mean(df.rel[df.rel$diagnosis == "ADHD",]$value, na.rm = T), 
                                             sd(df.rel[df.rel$diagnosis == "ADHD",]$value, na.rm = T)/
-                                              sum(df.rel$diagnosis == "ADHD"), 
+                                              sqrt(sum(df.rel$diagnosis == "ADHD")), 
                                             min(df.rel[df.rel$diagnosis == "ADHD",]$value, na.rm = T), 
                                             max(df.rel[df.rel$diagnosis == "ADHD",]$value, na.rm = T)
                       ),
                       ASD         = sprintf("%.2f ±%.2f (%.0f to %.0f)", 
                                             mean(df.rel[df.rel$diagnosis == "ASD",]$value), 
                                             sd(df.rel[df.rel$diagnosis == "ASD",]$value)/
-                                              sum(df.rel$diagnosis == "ASD"), 
+                                              sqrt(sum(df.rel$diagnosis == "ASD")), 
                                             min(df.rel[df.rel$diagnosis == "ASD",]$value), 
                                             max(df.rel[df.rel$diagnosis == "ASD",]$value)
                       ),
                       COMP        = sprintf("%.2f ±%.2f (%.0f to %.0f)", 
                                             mean(df.rel[df.rel$diagnosis == "COMP",]$value), 
                                             sd(df.rel[df.rel$diagnosis == "COMP",]$value)/
-                                              sum(df.rel$diagnosis == "COMP"), 
+                                              sqrt(sum(df.rel$diagnosis == "COMP")), 
                                             min(df.rel[df.rel$diagnosis == "COMP",]$value), 
                                             max(df.rel[df.rel$diagnosis == "COMP",]$value)
                       ),
