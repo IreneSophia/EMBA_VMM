@@ -224,9 +224,10 @@ if (!file.exists(file.path(model_dir, "VMM_data.RData"))) {
       "BDI" = "BDI_total",
       "ASRS-v1.1" = "ASRS_total",
       "Age"    = "age",
-      "IQ estimate" = "iq"
+      "IQ estimate" = "iq",
+      "Education" = edu
     ) %>%
-    select(diagnosis, Age, `IQ estimate`, `ASRS-v1.1`, `RADS-R`, BDI) %>%
+    select(diagnosis, Age, `IQ estimate`, `ASRS-v1.1`, `RADS-R`, BDI, Education) %>%
     pivot_longer(cols = where(is.numeric)) %>%
     mutate_if(is.character, as.factor)
   
@@ -249,6 +250,10 @@ if (!file.exists(file.path(model_dir, "VMM_data.RData"))) {
     }
     # compute the ANOVA
     aov = anovaBF(value ~ diagnosis, data = df.rel)
+    # overwrite results with table in the case of education
+    if (m == "Education") {
+      aov@bayesFactor[["bf"]] = ct.edu@bayesFactor$bf
+    }
     # get back the original, untransformed values 
     df.rel = df.sublng %>% filter(name == m)
     # put all the information into the demographics table
