@@ -623,10 +623,12 @@ point.args.pos = list(position = ggpp::position_dodgenudge(x = -0.25, width = 0.
   theme(legend.position = "bottom", 
         plot.title = element_text(hjust = 0.5), 
         legend.direction = "horizontal", 
-        text = element_text(size = 12, family = "mono", face = "bold")
+        legend.title = element_blank(),
+        text = element_text(size = 20, family = "Helvetica"),
+        legend.box.margin = margin(-20,0, 0, 0)
         )
 
-ggsave("neural_zstat.pdf", plot = p,
+ggsave("neural_zstat.tiff", plot = p,
        units  = "mm", width  = 270, height = 100, dpi    = 300)
 
 ```
@@ -747,10 +749,11 @@ point.args.pos = list(position = ggpp::position_dodgenudge(x = -0.25, width = 0.
   theme(legend.position = "bottom", 
         plot.title = element_text(hjust = 0.5), 
         legend.direction = "horizontal", 
-        text = element_text(size = 12, family = "mono", face = "bold")
+        legend.title = element_blank(),
+        text = element_text(size = 15, family = "Helvetica")
         )
 
-ggsave("rFG_zstat.pdf",
+ggsave("rFG_zstat.tiff",
        units  = "mm", width  = 170, height = 100, dpi    = 300)
 
 ```
