@@ -310,14 +310,14 @@ if (!file.exists(file.path(model_dir, "VMM_data.RData"))) {
     body_add_table(df.demo %>% arrange(measurement) %>% 
                          mutate(bf.log = 
                                   if_else(
-                                    bf.log > 3, 
+                                    bf.log > log(3), 
                                     sprintf("%.3f*", bf.log),
                                     sprintf("%.3f", bf.log)))) %>%
     print(target = "VMM_demo.docx")
   read_docx() %>%
     body_add_table(df.post  %>% 
                      mutate_if(is.numeric, 
-                               ~ifelse(.>3,sprintf("%.3f*", .),sprintf("%.3f", .)))) %>%
+                               ~ifelse(.>log(3),sprintf("%.3f*", .),sprintf("%.3f", .)))) %>%
     print(target = "VMM_post.docx")
   
   # check how many of each group are above threshold for asrs and rads
